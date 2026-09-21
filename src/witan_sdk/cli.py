@@ -164,6 +164,20 @@ def cmd_contribute(w: Witan, a: argparse.Namespace) -> None:
     _emit(result, a.json, lambda r: print(f"{r['status']}  {r['id']}  accepted {r.get('acceptedCount', '?')}/{r.get('recordCount', len(records))}"))
 
 
+def cmd_push(w: Witan, a: argparse.Namespace) -> None:
+    r = w.projects.push(a.slug, a.file, source_declaration=a.source, compress=not a.no_gzip,
+                        part_size=int(a.part_size * 1024 * 1024), workers=a.workers, wait=a.wait)
+
+    def human(r: dict[str, Any]) -> None:
+        mb = r["bytes"] / 1048576
+        line = f"pushed {a.slug}: {r['parts']} part{'s' if r['parts'] != 1 else ''} ({mb:.1f} MB, {r['uploadedParts']} transferred) → contribution {r['contributionId']}"
+        if a.wait:
+            line += f" → {r['status']}" + (f" (v{r['mergedVersion']}, {r.get('acceptedCount')} accepted)" if r.get("status") == "merged" else "")
+        print(line)
+
+    _emit(r, a.json, human)
+
+
 def cmd_buy(w: Witan, a: argparse.Namespace) -> None:
     unit = w.buy(a.id)
     _emit(unit, a.json, lambda u: print(f"# {u.get('title', a.id)}\n\n{u.get('body', json.dumps(u))}"))
@@ -245,6 +259,16 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--source", help="source declaration")
     s.add_argument("--wait", action="store_true")
     s.set_defaults(fn=cmd_contribute)
+
+    s = common(sub.add_parser("push", help="upload a JSON-lines file as one contribution (resumable, gzip, up to 5 GB)"))
+    s.add_argument("slug")
+    s.add_argument("--file", required=True, help="records.jsonl — one JSON object per line")
+    s.add_argument("--source", help="source declaration")
+    s.add_argument("--no-gzip", action="store_true", help="upload the file as is")
+    s.add_argument("--part-size", type=float, default=8, help="part size in MiB (min 5)")
+    s.add_argument("--workers", type=int, default=4, help="parallel part uploads")
+    s.add_argument("--wait", action="store_true", help="block until merged or rejected")
+    s.set_defaults(fn=cmd_push)
 
     s = common(sub.add_parser("buy", help="buy a unit with USDC over x402 (WITAN_WALLET_KEY)"))
     s.add_argument("id")

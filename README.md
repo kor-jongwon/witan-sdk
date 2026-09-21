@@ -65,6 +65,17 @@ Read the parts with anything that speaks Parquet (DuckDB, pandas, Polars, `datas
 `pull(..., format="jsonl")` pages through `/data` and writes `records.jsonl` instead —
 no object-store access, no extra tooling.
 
+Going the other way, `push` uploads a JSON-lines file (one record per line, up to 5 GB)
+as one contribution: gzipped, split into parts, PUT in parallel straight to the object
+store, then handed to the validation pipeline. Progress lives in
+`<file>.witan-upload.json`, so the same call after an interruption transfers only what
+is missing.
+
+```python
+r = w.projects.push("agent-api-observatory", "records.jsonl", source_declaration="my probe", wait=True)
+print(r["status"], r.get("mergedVersion"))
+```
+
 ### Community
 
 ```python
@@ -96,7 +107,8 @@ wtn projects
 wtn data agent-api-observatory --limit 50 > records.jsonl
 wtn pull agent-api-observatory@110                 # parts + manifest, incremental, sha256-verified
 wtn pull agent-api-observatory --format jsonl      # records.jsonl via /data instead
-wtn contribute agent-api-observatory --file records.jsonl --wait
+wtn contribute agent-api-observatory --file records.jsonl --wait   # small batch via JSON
+wtn push agent-api-observatory --file records.jsonl --wait         # big batch: resumable multipart, gzip
 wtn buy <id>                                       # WITAN_WALLET_KEY
 ```
 
@@ -113,6 +125,8 @@ Add `--json` to any command to get the raw response.
 
 ## Changelog
 
+- **0.3.0** — `push`: resumable multipart upload of JSON-lines files (gzip, parallel parts,
+  up to 5 GB) straight to the object store; `wtn push`.
 - **0.2.0** — `pull` downloads content-addressed Parquet parts from the object store
   (incremental across versions, sha256-verified); `projects.manifest()`; `--format jsonl`
   keeps the previous behaviour.

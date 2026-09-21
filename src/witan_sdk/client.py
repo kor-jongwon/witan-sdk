@@ -14,6 +14,9 @@ from .errors import AuthError, WaitTimeout, WitanError, raise_for
 DEFAULT_BASE_URL = "http://localhost:3000"
 DEFAULT_PAY_URL = "http://localhost:3001"
 
+MIN_PART_SIZE = 5 * 1024 * 1024  # S3 multipart rule for every part but the last
+MAX_PARTS = 1000
+
 UNIT_TERMINAL = frozenset({"published", "rejected"})
 CONTRIBUTION_TERMINAL = frozenset({"merged", "rejected"})
 
@@ -78,6 +81,16 @@ class Witan:
         if response.status_code == 204 or not response.content:
             return None
         return response.json()
+
+    def _upload_part(self, url: str, data: bytes) -> str:
+        """PUT one part to its presigned URL; returns the ETag the store assigned."""
+        response = self._raw.put(url, content=data)
+        if response.status_code >= 400:
+            raise WitanError(f"part upload failed: HTTP {response.status_code}", status=response.status_code)
+        etag = response.headers.get("etag")
+        if not etag:
+            raise WitanError("object store returned no ETag for the part")
+        return etag.strip('"')
 
     def _download_part(self, part: dict[str, Any], parts_dir: Any) -> None:
         """Stream one presigned part to disk and verify its sha256 before it gets its name."""
@@ -368,6 +381,103 @@ class Projects:
             if time.monotonic() >= deadline:
                 raise WaitTimeout(f"contribution {contribution_id} still {c.get('status')} after {timeout:.0f}s")
             time.sleep(interval)
+
+    def push(self, slug: str, path: "str | os.PathLike[str]", *, source_declaration: str | None = None,
+             compress: bool = True, part_size: int = 8 * 1024 * 1024, workers: int = 4,
+             wait: bool = False, timeout: float = 900.0) -> dict[str, Any]:
+        """Upload a JSON-lines file (one record per line) as one contribution, resumably.
+
+        The file is gzipped (unless ``compress=False``), split into parts of ``part_size``
+        (at least 5 MiB — the object store's rule), and the parts are PUT in parallel
+        straight to presigned URLs; the api never sees the bytes. Progress is kept in
+        ``<file>.witan-upload.json``: run the same call again after an interruption and
+        only the missing parts transfer. Returns the completion (``contributionId``, ...);
+        with ``wait=True`` the contribution's final state is merged in.
+        """
+        import gzip
+        import json as _json
+        import math
+        import shutil
+        import threading
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        from pathlib import Path
+
+        src = Path(path)
+        if not src.is_file():
+            raise WitanError(f"no such file: {src}")
+        st = src.stat()
+        state_path = src.with_name(src.name + ".witan-upload.json")
+        upload_path = src.with_name(src.name + ".witan-upload.gz") if compress else src
+        if compress and not upload_path.exists():
+            with src.open("rb") as fin, gzip.open(upload_path, "wb", compresslevel=6) as fout:
+                shutil.copyfileobj(fin, fout, 1024 * 1024)
+        size = upload_path.stat().st_size
+        part_size = max(int(part_size), MIN_PART_SIZE)
+        parts = max(1, math.ceil(size / part_size))
+        if parts > MAX_PARTS:
+            part_size = math.ceil(size / MAX_PARTS)
+            parts = math.ceil(size / part_size)
+        fingerprint = {"slug": slug, "size": st.st_size, "mtime": int(st.st_mtime), "compress": compress, "partSize": part_size}
+
+        state: dict[str, Any] | None = None
+        if state_path.exists():
+            try:
+                saved = _json.loads(state_path.read_text(encoding="utf-8"))
+                if all(saved.get(k) == v for k, v in fingerprint.items()):
+                    state = saved
+            except (OSError, ValueError):
+                state = None
+        if state is None:
+            init = self._c._request("POST", f"/projects/{slug}/uploads", json={
+                "bytes": size, "parts": parts,
+                "sourceDeclaration": source_declaration,
+                "compression": "gzip" if compress else "none",
+            }, auth=True)
+            state = {**fingerprint, "uploadId": init["uploadId"], "expiresAt": init.get("expiresAt"),
+                     "urls": {str(p["n"]): p["url"] for p in init["parts"]}, "etags": {}}
+            state_path.write_text(_json.dumps(state), encoding="utf-8")
+
+        todo = [n for n in range(1, parts + 1) if str(n) not in state["etags"]]
+        lock = threading.Lock()
+        failed = threading.Event()
+
+        def put(n: int) -> None:
+            if failed.is_set():  # an earlier part failed: don't start more transfers
+                return
+            with upload_path.open("rb") as fh:
+                fh.seek((n - 1) * part_size)
+                data = fh.read(part_size)
+            try:
+                etag = self._c._upload_part(state["urls"][str(n)], data)
+            except BaseException:
+                failed.set()
+                raise
+            with lock:
+                state["etags"][str(n)] = etag
+                state_path.write_text(_json.dumps(state), encoding="utf-8")
+
+        # First failure stops the upload; parts not yet started are cancelled so an outage
+        # does not keep retrying blindly. Everything already stored resumes next time.
+        with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+            futures = [pool.submit(put, n) for n in todo]
+            try:
+                for fut in as_completed(futures):
+                    fut.result()
+            except BaseException:
+                for fut in futures:
+                    fut.cancel()
+                raise
+
+        etags = [{"n": int(n), "etag": e} for n, e in sorted(state["etags"].items(), key=lambda kv: int(kv[0]))]
+        done = self._c._request("POST", f"/projects/{slug}/uploads/{state['uploadId']}/complete",
+                                json={"etags": etags}, auth=True)
+        state_path.unlink(missing_ok=True)
+        if compress:
+            upload_path.unlink(missing_ok=True)
+        result: dict[str, Any] = {**done, "parts": parts, "uploadedParts": len(todo), "bytes": size}
+        if wait:
+            result.update(self.wait_contribution(slug, done["contributionId"], timeout=timeout))
+        return result
 
     def comments(self, slug: str) -> list[dict[str, Any]]:
         return self._c._request("GET", f"/projects/{slug}/comments")["comments"]
