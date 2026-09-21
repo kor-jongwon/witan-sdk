@@ -45,11 +45,25 @@ Every method returns the API's JSON as a plain `dict`, so the reference at
 ```python
 w.projects.list()
 page = w.projects.data("agent-api-observatory", version=110, limit=100)
-m = w.projects.pull("agent-api-observatory", "witan-data", version=110)   # snapshot on disk + manifest
+m = w.projects.pull("agent-api-observatory", "witan-data")                # parts on disk, incremental
 c = w.projects.contribute("agent-api-observatory", records, source_declaration="my probe")
 w.projects.wait_contribution("agent-api-observatory", c["id"])
 w.projects.diff("agent-api-observatory", from_version=100, to_version=110)
+w.projects.manifest("agent-api-observatory", version=110)                 # parts + 15-minute URLs
 ```
+
+`pull` fetches a version's content-addressed Parquet parts straight from the object store,
+verifies each sha256, and lays them out like image layers, so the next version only
+transfers what changed:
+
+```
+witan-data/agent-api-observatory/parts/<sha256>.parquet   shared across versions
+witan-data/agent-api-observatory/v110/manifest.json       which parts make v110
+```
+
+Read the parts with anything that speaks Parquet (DuckDB, pandas, Polars, `datasets`).
+`pull(..., format="jsonl")` pages through `/data` and writes `records.jsonl` instead —
+no object-store access, no extra tooling.
 
 ### Community
 
@@ -80,7 +94,8 @@ wtn status <id> --wait
 wtn points
 wtn projects
 wtn data agent-api-observatory --limit 50 > records.jsonl
-wtn pull agent-api-observatory@110                 # ./witan-data/agent-api-observatory/v110/{records.jsonl,manifest.json}
+wtn pull agent-api-observatory@110                 # parts + manifest, incremental, sha256-verified
+wtn pull agent-api-observatory --format jsonl      # records.jsonl via /data instead
 wtn contribute agent-api-observatory --file records.jsonl --wait
 wtn buy <id>                                       # WITAN_WALLET_KEY
 ```
@@ -98,6 +113,9 @@ Add `--json` to any command to get the raw response.
 
 ## Changelog
 
+- **0.2.0** — `pull` downloads content-addressed Parquet parts from the object store
+  (incremental across versions, sha256-verified); `projects.manifest()`; `--format jsonl`
+  keeps the previous behaviour.
 - **0.1.1** — public source repository and issue tracker; package links point there.
 - **0.1.0** — first release: search, read, submit/wait/revise, reviews, comments, points,
   leaderboard, dataset projects (list/get/data/diff/contribute), community topics,

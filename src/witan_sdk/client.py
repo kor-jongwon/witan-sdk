@@ -9,7 +9,7 @@ from typing import Any, Iterable
 
 import httpx
 
-from .errors import AuthError, WaitTimeout, raise_for
+from .errors import AuthError, WaitTimeout, WitanError, raise_for
 
 DEFAULT_BASE_URL = "http://localhost:3000"
 DEFAULT_PAY_URL = "http://localhost:3001"
@@ -49,12 +49,16 @@ class Witan:
             headers["authorization"] = f"Bearer {self.api_key}"
         self._http = httpx.Client(base_url=self.base_url, headers=headers, timeout=timeout,
                                   transport=transport)
+        # Bare client for presigned object-store URLs: the signature lives in the query
+        # string and S3-compatible stores reject requests that also carry Authorization.
+        self._raw = httpx.Client(timeout=timeout, transport=transport, follow_redirects=True)
         self.projects = Projects(self)
         self.community = Community(self)
 
     # ---- lifecycle -------------------------------------------------------
     def close(self) -> None:
         self._http.close()
+        self._raw.close()
 
     def __enter__(self) -> "Witan":
         return self
@@ -74,6 +78,29 @@ class Witan:
         if response.status_code == 204 or not response.content:
             return None
         return response.json()
+
+    def _download_part(self, part: dict[str, Any], parts_dir: Any) -> None:
+        """Stream one presigned part to disk and verify its sha256 before it gets its name."""
+        import hashlib
+        from pathlib import Path
+
+        target = Path(parts_dir) / f"{part['sha256']}.parquet"
+        tmp = target.with_suffix(".parquet.part")
+        digest = hashlib.sha256()
+        try:
+            with self._raw.stream("GET", part["url"]) as response:
+                if response.status_code >= 400:
+                    raise WitanError(f"part download failed: HTTP {response.status_code}", status=response.status_code)
+                with tmp.open("wb") as fh:
+                    for chunk in response.iter_bytes():
+                        digest.update(chunk)
+                        fh.write(chunk)
+            if digest.hexdigest() != part["sha256"]:
+                raise WitanError(f"part {part['sha256'][:12]}… failed sha256 verification")
+            tmp.replace(target)
+        finally:
+            if tmp.exists():
+                tmp.unlink()
 
     # ---- knowledge: discover -------------------------------------------
     def search(self, q: str, *, category: str | None = None, mode: str = "keyword",
@@ -179,6 +206,13 @@ class Witan:
         return purchase(self.pay_url, "/paid/dataset", {"slug": slug, "version": version}, private_key)
 
 
+def _present(path: "os.PathLike[str] | str", size: int) -> bool:
+    try:
+        return os.stat(path).st_size == int(size)
+    except OSError:
+        return False
+
+
 class Projects:
     """Dataset projects — git-for-data repos of agent-pushed records."""
 
@@ -199,12 +233,71 @@ class Projects:
         return self._c._request("GET", f"/projects/{slug}/data",
                                 params={"version": version, "limit": limit, "offset": offset}, auth=True)
 
+    def manifest(self, slug: str, *, version: int | None = None) -> dict[str, Any]:
+        """Version manifest: schema, the content-addressed parts (sha256, bytes, records)
+        and a 15-minute presigned URL per part. Latest version when ``version`` is None."""
+        return self._c._request("GET", f"/projects/{slug}/manifest", params={"version": version}, auth=True)
+
     def pull(self, slug: str, out_dir: "str | os.PathLike[str]" = "witan-data", *,
-             version: int | None = None, page: int = 200) -> dict[str, Any]:
-        """Download one version to ``out_dir/<slug>/v<N>/records.jsonl`` plus a
-        ``manifest.json`` (project, version, count, pulledAt, source). Versions are
-        immutable, so the directory is a faithful snapshot; pulling a version that is
-        already on disk returns its manifest without touching the network."""
+             version: int | None = None, format: str = "parquet", page: int = 200,
+             workers: int = 4) -> dict[str, Any]:
+        """Download one version to disk and return its local manifest.
+
+        ``format="parquet"`` (default) fetches the version's parts straight from the object
+        store into ``out_dir/<slug>/parts/<sha256>.parquet`` (shared across versions, like
+        image layers) and writes ``out_dir/<slug>/v<N>/manifest.json``. Parts already on
+        disk are skipped, so pulling the next version transfers only what changed; every
+        download is sha256-verified. ``format="jsonl"`` pages through ``/data`` instead and
+        writes ``v<N>/records.jsonl`` — no object-store access, what 0.1.x did. Versions
+        the server has not materialized as parts yet fall back to jsonl automatically.
+        """
+        if format == "jsonl":
+            return self._pull_jsonl(slug, out_dir, version=version, page=page)
+        if format != "parquet":
+            raise ValueError("format must be 'parquet' or 'jsonl'")
+        import datetime as _dt
+        import json as _json
+        from concurrent.futures import ThreadPoolExecutor
+        from pathlib import Path
+
+        from .errors import ConflictError
+
+        root = Path(out_dir) / slug
+        parts_dir = root / "parts"
+        if version is not None:
+            local = root / f"v{version}" / "manifest.json"
+            if local.exists():
+                m = _json.loads(local.read_text(encoding="utf-8"))
+                if m.get("format") == "parquet" and all(
+                    _present(parts_dir / f"{p['sha256']}.parquet", p["bytes"]) for p in m["parts"]
+                ):
+                    return m
+        try:
+            remote = self.manifest(slug, version=version)
+        except ConflictError:
+            return self._pull_jsonl(slug, out_dir, version=version, page=page)
+        v = int(remote["version"])
+        vdir = root / f"v{v}"
+        parts_dir.mkdir(parents=True, exist_ok=True)
+        vdir.mkdir(parents=True, exist_ok=True)
+        todo = [p for p in remote["parts"] if not _present(parts_dir / f"{p['sha256']}.parquet", p["bytes"])]
+        with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+            list(pool.map(lambda p: self._c._download_part(p, parts_dir), todo))
+        local_manifest: dict[str, Any] = {k: val for k, val in remote.items() if k != "urlExpiresAt"}
+        local_manifest["parts"] = [{k: val for k, val in p.items() if k != "url"} for p in remote["parts"]]
+        local_manifest.update({
+            "format": "parquet",
+            "count": int(remote["totals"]["records"]),
+            "file": "parts/<sha256>.parquet",
+            "downloaded": len(todo),
+            "pulledAt": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
+            "source": self._c.base_url,
+        })
+        (vdir / "manifest.json").write_text(_json.dumps(local_manifest, indent=2), encoding="utf-8")
+        return local_manifest
+
+    def _pull_jsonl(self, slug: str, out_dir: "str | os.PathLike[str]", *,
+                    version: int | None, page: int) -> dict[str, Any]:
         import datetime as _dt
         import json as _json
         from pathlib import Path
@@ -213,8 +306,12 @@ class Projects:
         v = int(first["version"])
         target = Path(out_dir) / slug / f"v{v}"
         manifest_path = target / "manifest.json"
-        if manifest_path.exists():
-            return _json.loads(manifest_path.read_text(encoding="utf-8"))
+        records_path = target / "records.jsonl"
+        if records_path.exists():
+            existing = _json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
+            with records_path.open("r", encoding="utf-8") as fh:
+                count = sum(1 for line in fh if line.strip())
+            return {**existing, "project": slug, "version": v, "count": count, "format": "jsonl", "file": "records.jsonl"}
         target.mkdir(parents=True, exist_ok=True)
         part = target / "records.jsonl.part"
         count = 0
@@ -234,11 +331,13 @@ class Projects:
             "project": slug,
             "version": v,
             "count": count,
+            "format": "jsonl",
             "file": "records.jsonl",
             "pulledAt": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
             "source": self._c.base_url,
         }
-        manifest_path.write_text(_json.dumps(manifest, indent=2), encoding="utf-8")
+        if not manifest_path.exists():  # a parquet manifest for the same version stays authoritative
+            manifest_path.write_text(_json.dumps(manifest, indent=2), encoding="utf-8")
         return manifest
 
     def diff(self, slug: str, *, from_version: int, to_version: int,
