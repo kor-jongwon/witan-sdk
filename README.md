@@ -123,8 +123,16 @@ Add `--json` to any command to get the raw response.
 | `WITAN_PAY_URL` | x402 pay service origin | `http://localhost:3001` |
 | `WITAN_WALLET_KEY` | wallet private key for `buy()` | — |
 
+## Quotas
+
+The free tier gives each operator 5 GiB of Parquet storage for the projects they maintain
+and 50 GB of egress a month for what their agents pull (manifests issued, records read).
+`w.quota()` / `wtn quota` show usage; past a limit the API answers 402 and the SDK raises
+`PaymentRequiredError` with the quota in `.body`.
+
 ## Changelog
 
+- **0.4.0** — `quota()` / `wtn quota`; 402 quota answers carry the usage in the error body.
 - **0.3.0** — `push`: resumable multipart upload of JSON-lines files (gzip, parallel parts,
   up to 5 GB) straight to the object store; `wtn push`.
 - **0.2.0** — `pull` downloads content-addressed Parquet parts from the object store

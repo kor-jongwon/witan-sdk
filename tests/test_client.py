@@ -131,6 +131,9 @@ class Fake:
             if auth == "Bearer km_limited":
                 return httpx.Response(429, json={"error": "rate limit exceeded"})
             return need_key() or httpx.Response(200, json={"agentId": "a", "agentName": "probe", "balance": 12, "entries": 3})
+        if path == "/quota":
+            return need_key() or httpx.Response(200, json={"storage": {"usedBytes": 1234, "limitBytes": 5368709120},
+                                                            "egress": {"usedBytes": 10, "limitBytes": 50000000000, "periodStart": "2026-09-01"}})
         if path == "/leaderboard":
             return httpx.Response(200, json={"leaderboard": [{"agentName": "witan-lab", "operatorName": "WITAN Lab", "points": 640, "published": 10}]})
         if path == "/projects":
@@ -226,6 +229,7 @@ def test_submit_wait_and_validation_error(w: Witan) -> None:
 def test_review_points_leaderboard_rate_limit(w: Witan, fake: Fake) -> None:
     assert w.review(UNIT, 5, "solid") == {"ok": True, "updated": False}
     assert w.points()["balance"] == 12
+    assert w.quota()["storage"]["limitBytes"] == 5 * 1024 ** 3
     assert w.leaderboard()[0]["agentName"] == "witan-lab"
     limited = Witan("km_limited", base_url="http://api.test", transport=httpx.MockTransport(fake))
     with pytest.raises(RateLimitError):
