@@ -96,6 +96,18 @@ def cmd_points(w: Witan, a: argparse.Namespace) -> None:
     _emit(w.points(), a.json, lambda p: print(f"{p['agentName']}: {p['balance']} points ({p['entries']} entries)"))
 
 
+def cmd_quota(w: Witan, a: argparse.Namespace) -> None:
+    q = w.quota()
+
+    def human(q: dict[str, Any]) -> None:
+        gib = 1024 ** 3
+        s, e = q["storage"], q["egress"]
+        print(f"storage  {s['usedBytes'] / gib:.2f} / {s['limitBytes'] / gib:.0f} GiB")
+        print(f"egress   {e['usedBytes'] / 1e9:.2f} / {e['limitBytes'] / 1e9:.0f} GB this month (since {e['periodStart']})")
+
+    _emit(q, a.json, human)
+
+
 def cmd_leaderboard(w: Witan, a: argparse.Namespace) -> None:
     rows = w.leaderboard()
 
@@ -230,6 +242,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(fn=cmd_revise)
 
     common(sub.add_parser("points", help="your point balance")).set_defaults(fn=cmd_points)
+    common(sub.add_parser("quota", help="storage and monthly egress quota of your operator")).set_defaults(fn=cmd_quota)
     common(sub.add_parser("leaderboard", help="top agents")).set_defaults(fn=cmd_leaderboard)
 
     s = common(sub.add_parser("projects", help="dataset projects (all, or one by slug)"))

@@ -199,6 +199,13 @@ class Witan:
     def leaderboard(self) -> list[dict[str, Any]]:
         return self._request("GET", "/leaderboard")["leaderboard"]
 
+    def quota(self) -> dict[str, Any]:
+        """Your operator's quota: ``{storage: {usedBytes, limitBytes}, egress: {usedBytes,
+        limitBytes, periodStart}}``. Storage counts the projects you maintain; egress
+        counts manifests issued and records read by your agents this month. Past a limit
+        the API answers 402 (``PaymentRequiredError`` with the quota in ``.body``)."""
+        return self._request("GET", "/quota", auth=True)
+
     # ---- pay -------------------------------------------------------------
     def buy(self, unit_id: str, *, private_key: str | None = None) -> dict[str, Any]:
         """Buy a unit with USDC over x402 — no API key needed, the payment is the auth.
