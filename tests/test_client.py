@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 
 import httpx
@@ -16,9 +17,29 @@ from witan_sdk import (
     ValidationError,
     WaitTimeout,
     Witan,
+    WitanError,
 )
 
 UNIT = "5e5fc8dd-af67-4f34-839b-b366ef05d43d"
+PART_A = b"PAR1" + b"a" * 120 + b"PAR1"
+PART_B = b"PAR1" + b"b" * 64 + b"PAR1"
+SHA_A = hashlib.sha256(PART_A).hexdigest()
+SHA_B = hashlib.sha256(PART_B).hexdigest()
+
+
+def manifest_for(version: int) -> dict:
+    parts = [
+        {"sha256": SHA_A, "bytes": len(PART_A), "records": 2, "contributionId": "c-a", "agentId": "ag", "mergedInVersion": 109, "url": "http://parts.test/a"},
+        {"sha256": SHA_B, "bytes": len(PART_B), "records": 1, "contributionId": "c-b", "agentId": "ag", "mergedInVersion": 110, "url": "http://parts.test/b"},
+    ]
+    if version == 111:  # server says SHA_B, store serves other bytes
+        parts = [{**parts[1], "url": "http://parts.test/bad", "mergedInVersion": 111}]
+    return {"format": "witan-dataset-manifest/1", "project": "agent-api-observatory", "version": version,
+            "parent": version - 1, "createdAt": "2026-09-21T00:00:00Z",
+            "schema": {"hash": "h", "fields": [{"name": "ok", "type": "boolean"}], "allowExtra": False},
+            "parts": parts, "totals": {"records": sum(p["records"] for p in parts), "bytes": sum(p["bytes"] for p in parts),
+                                       "parts": len(parts), "contributions": version},
+            "urlExpiresAt": "2026-09-21T00:15:00Z"}
 SEARCH_HIT = {"id": UNIT, "title": "Redis 7.4 SET/GET/INCR", "category": "infra-measurement",
               "preview": "…", "score": "68", "agentName": "witan-lab", "createdAt": "2026-08-21T07:58:37.580Z"}
 
@@ -34,6 +55,13 @@ class Fake:
         self.calls.append(request)
         path, q = request.url.path, dict(request.url.params)
         auth = request.headers.get("authorization", "")
+
+        # presigned object store: the signature is in the URL, an Authorization header is a hard error
+        if request.url.host == "parts.test":
+            if "authorization" in request.headers:
+                return httpx.Response(400, text="InvalidArgument: Only one auth mechanism allowed")
+            body = {"/a": PART_A, "/b": PART_B, "/bad": PART_A}.get(path)
+            return httpx.Response(200, content=body) if body else httpx.Response(404)
 
         def need_key() -> httpx.Response | None:
             if not auth.startswith("Bearer km_"):
@@ -79,12 +107,16 @@ class Fake:
                                                             "status": "open", "access": "public", "latestVersion": 110,
                                                             "records": 1278, "stars": 0, "contributions": 110, "license": "platform-standard",
                                                             "createdAt": "2026-08-24T07:53:57.097Z"}]})
-        if path == "/projects/agent-api-observatory/data":
+        if path in ("/projects/agent-api-observatory/data", "/projects/legacy/data"):
             if need_key():
                 return need_key()
             recs = [{"ok": True, "latency_ms": 18.2}] if int(q.get("offset", 0)) == 0 else []
-            return httpx.Response(200, json={"project": "agent-api-observatory", "version": int(q.get("version", 110)),
+            return httpx.Response(200, json={"project": path.split("/")[2], "version": int(q.get("version", 110)),
                                              "count": len(recs), "records": recs})
+        if path == "/projects/agent-api-observatory/manifest":
+            return need_key() or httpx.Response(200, json=manifest_for(int(q.get("version", 110))))
+        if path == "/projects/legacy/manifest":
+            return need_key() or httpx.Response(409, json={"error": "this version has not been materialized as parts yet"})
         if path == "/projects/paid-one/data":
             return need_key() or httpx.Response(402, json={"error": "payment required", "to": "http://pay/paid/dataset?slug=paid-one"})
         if path == "/projects/agent-api-observatory/diff":
@@ -183,15 +215,43 @@ def test_projects(w: Witan) -> None:
     assert ei.value.body["to"].startswith("http://pay/")
 
 
-def test_pull_writes_snapshot_and_caches(w: Witan, fake: Fake, tmp_path) -> None:
-    m = w.projects.pull("agent-api-observatory", tmp_path, page=1)
-    assert m["version"] == 110 and m["count"] == 1
+def test_pull_jsonl_writes_snapshot_and_caches(w: Witan, fake: Fake, tmp_path) -> None:
+    m = w.projects.pull("agent-api-observatory", tmp_path, format="jsonl", page=1)
+    assert m["version"] == 110 and m["count"] == 1 and m["format"] == "jsonl"
     d = tmp_path / "agent-api-observatory" / "v110"
     assert (d / "records.jsonl").read_text(encoding="utf-8").strip() == json.dumps({"ok": True, "latency_ms": 18.2})
     assert json.loads((d / "manifest.json").read_text(encoding="utf-8"))["count"] == 1
     n = len(fake.calls)
-    again = w.projects.pull("agent-api-observatory", tmp_path, version=110, page=1)
+    again = w.projects.pull("agent-api-observatory", tmp_path, version=110, format="jsonl", page=1)
     assert again["count"] == 1 and len(fake.calls) == n + 1  # one probe call, no re-download
+
+
+def test_pull_parquet_parts_verified_and_incremental(w: Witan, fake: Fake, tmp_path) -> None:
+    m = w.projects.pull("agent-api-observatory", tmp_path)
+    assert m["format"] == "parquet" and m["version"] == 110 and m["downloaded"] == 2 and m["count"] == 3
+    parts = tmp_path / "agent-api-observatory" / "parts"
+    assert (parts / f"{SHA_A}.parquet").read_bytes() == PART_A and (parts / f"{SHA_B}.parquet").read_bytes() == PART_B
+    saved = json.loads((tmp_path / "agent-api-observatory" / "v110" / "manifest.json").read_text(encoding="utf-8"))
+    assert "urlExpiresAt" not in saved and all("url" not in p for p in saved["parts"])
+    downloads = [c for c in fake.calls if c.url.host == "parts.test"]
+    assert len(downloads) == 2 and all("authorization" not in c.headers for c in downloads)
+    n = len(fake.calls)
+    pinned = w.projects.pull("agent-api-observatory", tmp_path, version=110)
+    assert pinned["version"] == 110 and len(fake.calls) == n  # pinned + complete on disk: no network
+    latest = w.projects.pull("agent-api-observatory", tmp_path)
+    assert latest["downloaded"] == 0 and len(fake.calls) == n + 1  # one manifest probe, no part transfers
+
+
+def test_pull_rejects_corrupt_part(w: Witan, tmp_path) -> None:
+    with pytest.raises(WitanError, match="sha256"):
+        w.projects.pull("agent-api-observatory", tmp_path, version=111)
+    parts = tmp_path / "agent-api-observatory" / "parts"
+    assert not list(parts.glob("*.part")) and not (parts / f"{SHA_B}.parquet").exists()
+
+
+def test_pull_falls_back_to_jsonl_when_not_materialized(w: Witan, tmp_path) -> None:
+    m = w.projects.pull("legacy", tmp_path)
+    assert m["format"] == "jsonl" and (tmp_path / "legacy" / "v110" / "records.jsonl").exists()
 
 
 def test_community(w: Witan) -> None:

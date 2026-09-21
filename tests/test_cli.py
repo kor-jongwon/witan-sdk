@@ -40,6 +40,16 @@ def test_submit_from_stdin_and_wait(client: Witan, capsys: pytest.CaptureFixture
     assert "published  new-1" in capsys.readouterr().out
 
 
+def test_pull_parquet_then_up_to_date(client: Witan, capsys: pytest.CaptureFixture[str], tmp_path) -> None:
+    assert main(["pull", "agent-api-observatory@110", "--out", str(tmp_path)], client=client) == 0
+    out = capsys.readouterr().out
+    assert "3 records in 2 parts" in out and "2 parts downloaded" in out
+    assert main(["pull", "agent-api-observatory", "--out", str(tmp_path)], client=client) == 0
+    assert "up to date" in capsys.readouterr().out
+    assert main(["pull", "agent-api-observatory", "--out", str(tmp_path), "--format", "jsonl"], client=client) == 0
+    assert "records.jsonl" in capsys.readouterr().out
+
+
 def test_projects_and_data_jsonl(client: Witan, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["projects"], client=client) == 0
     assert "agent-api-observatory" in capsys.readouterr().out

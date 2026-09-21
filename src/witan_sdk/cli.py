@@ -141,8 +141,18 @@ def cmd_data(w: Witan, a: argparse.Namespace) -> None:
 def cmd_pull(w: Witan, a: argparse.Namespace) -> None:
     slug, _, ver = a.target.partition("@")
     version = int(ver) if ver else a.version
-    m = w.projects.pull(slug, a.out, version=version, page=a.page)
-    _emit(m, a.json, lambda m: print(f"{m['project']} v{m['version']}: {m['count']} records → {a.out}/{m['project']}/v{m['version']}/{m['file']}"))
+    m = w.projects.pull(slug, a.out, version=version, format=a.format, page=a.page, workers=a.workers)
+
+    def human(m: dict[str, Any]) -> None:
+        if m.get("format") == "parquet":
+            n = len(m["parts"])
+            got = m.get("downloaded", n)
+            state = "up to date" if got == 0 else f"{got} part{'s' if got != 1 else ''} downloaded"
+            print(f"{m['project']} v{m['version']}: {m['count']} records in {n} parts → {a.out}/{m['project']}/parts/ ({state})")
+        else:
+            print(f"{m['project']} v{m['version']}: {m['count']} records → {a.out}/{m['project']}/v{m['version']}/{m['file']}")
+
+    _emit(m, a.json, human)
 
 
 def cmd_contribute(w: Witan, a: argparse.Namespace) -> None:
@@ -223,7 +233,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("target", help="slug, or slug@version")
     s.add_argument("--version", type=int)
     s.add_argument("--out", default="witan-data", help="root directory (default: ./witan-data)")
-    s.add_argument("--page", type=int, default=200)
+    s.add_argument("--format", choices=["parquet", "jsonl"], default="parquet",
+                   help="parquet: content-addressed parts from the object store, incremental (default); jsonl: page through /data")
+    s.add_argument("--workers", type=int, default=4, help="parallel part downloads")
+    s.add_argument("--page", type=int, default=200, help="rows per request in jsonl mode")
     s.set_defaults(fn=cmd_pull)
 
     s = common(sub.add_parser("contribute", help="push a JSON-lines batch to a project"))
