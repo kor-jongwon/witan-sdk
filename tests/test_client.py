@@ -50,23 +50,54 @@ class Fake:
     def __init__(self) -> None:
         self.calls: list[httpx.Request] = []
         self.status_sequence = ["screening", "validating", "published"]
+        self.put_bodies: dict[int, list[bytes]] = {}
+        self.upload_inits: list[dict] = []
+        self.completions: list[list] = []
+        self.fail_part2_once = False
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.calls.append(request)
         path, q = request.url.path, dict(request.url.params)
         auth = request.headers.get("authorization", "")
 
-        # presigned object store: the signature is in the URL, an Authorization header is a hard error
-        if request.url.host == "parts.test":
-            if "authorization" in request.headers:
-                return httpx.Response(400, text="InvalidArgument: Only one auth mechanism allowed")
-            body = {"/a": PART_A, "/b": PART_B, "/bad": PART_A}.get(path)
-            return httpx.Response(200, content=body) if body else httpx.Response(404)
-
         def need_key() -> httpx.Response | None:
             if not auth.startswith("Bearer km_"):
                 return httpx.Response(401, json={"error": "missing or malformed API key"})
             return None
+
+        # presigned object store: the signature is in the URL, an Authorization header is a hard error
+        if request.url.host == "parts.test":
+            if "authorization" in request.headers:
+                return httpx.Response(400, text="InvalidArgument: Only one auth mechanism allowed")
+            if request.method == "PUT" and path.startswith("/up/"):
+                n = int(path.rsplit("/", 1)[1])
+                self.put_bodies.setdefault(n, []).append(request.content)
+                if n == 2 and self.fail_part2_once:
+                    self.fail_part2_once = False
+                    return httpx.Response(500, text="flaky store")
+                return httpx.Response(200, headers={"ETag": f'"etag-{n}"'})
+            body = {"/a": PART_A, "/b": PART_B, "/bad": PART_A}.get(path)
+            return httpx.Response(200, content=body) if body else httpx.Response(404)
+        if path == "/projects/agent-api-observatory/uploads" and request.method == "POST":
+            if need_key():
+                return need_key()
+            body = json.loads(request.content)
+            self.upload_inits.append(body)
+            return httpx.Response(201, json={"uploadId": "u-1", "key": "staging/u-1/records.jsonl", "partSize": 4,
+                                             "parts": [{"n": i + 1, "url": f"http://parts.test/up/{i + 1}"} for i in range(body["parts"])],
+                                             "expiresAt": "2099-01-01T00:00:00Z"})
+        if path == "/projects/agent-api-observatory/uploads/u-1/complete":
+            if need_key():
+                return need_key()
+            body = json.loads(request.content)
+            self.completions.append(body["etags"])
+            expected = self.upload_inits[-1]["parts"]
+            if len(body["etags"]) != expected:
+                return httpx.Response(400, json={"error": f"expected etags for parts 1..{expected}"})
+            return httpx.Response(201, json={"contributionId": "c-9", "uploadId": "u-1", "status": "submitted", "bytes": 10})
+        if path == "/projects/agent-api-observatory/contributions/c-9":
+            return need_key() or httpx.Response(200, json={"id": "c-9", "status": "merged", "recordCount": 3,
+                                                            "acceptedCount": 3, "mergedVersion": 111})
 
         if path == "/search":
             if q.get("q") == "nothing":
@@ -247,6 +278,46 @@ def test_pull_rejects_corrupt_part(w: Witan, tmp_path) -> None:
         w.projects.pull("agent-api-observatory", tmp_path, version=111)
     parts = tmp_path / "agent-api-observatory" / "parts"
     assert not list(parts.glob("*.part")) and not (parts / f"{SHA_B}.parquet").exists()
+
+
+def test_push_splits_uploads_in_parallel_and_completes(w: Witan, fake: Fake, tmp_path, monkeypatch) -> None:
+    import witan_sdk.client as mod
+    monkeypatch.setattr(mod, "MIN_PART_SIZE", 4)
+    f = tmp_path / "records.jsonl"
+    f.write_bytes(b"0123456789")  # 10 bytes → parts of 4: 4, 4, 2
+    r = w.projects.push("agent-api-observatory", f, compress=False, part_size=4, wait=True, source_declaration="probe")
+    assert fake.upload_inits[-1] == {"bytes": 10, "parts": 3, "sourceDeclaration": "probe", "compression": "none"}
+    assert [fake.put_bodies[n][0] for n in (1, 2, 3)] == [b"0123", b"4567", b"89"]
+    assert fake.completions[-1] == [{"n": 1, "etag": "etag-1"}, {"n": 2, "etag": "etag-2"}, {"n": 3, "etag": "etag-3"}]
+    assert r["contributionId"] == "c-9" and r["parts"] == 3 and r["uploadedParts"] == 3 and r["status"] == "merged"
+    puts = [c for c in fake.calls if c.method == "PUT"]
+    assert len(puts) == 3 and all("authorization" not in c.headers for c in puts)
+    assert not (tmp_path / "records.jsonl.witan-upload.json").exists()
+
+
+def test_push_resumes_after_a_failed_part(w: Witan, fake: Fake, tmp_path, monkeypatch) -> None:
+    import witan_sdk.client as mod
+    monkeypatch.setattr(mod, "MIN_PART_SIZE", 4)
+    f = tmp_path / "records.jsonl"
+    f.write_bytes(b"0123456789")
+    fake.fail_part2_once = True
+    with pytest.raises(WitanError, match="HTTP 500"):
+        w.projects.push("agent-api-observatory", f, compress=False, part_size=4, workers=1)
+    state = json.loads((tmp_path / "records.jsonl.witan-upload.json").read_text(encoding="utf-8"))
+    assert state["etags"] == {"1": "etag-1"} and state["uploadId"] == "u-1"
+    inits = len(fake.upload_inits)
+    r = w.projects.push("agent-api-observatory", f, compress=False, part_size=4, workers=1)
+    assert len(fake.upload_inits) == inits  # resumed: no new upload started
+    assert r["uploadedParts"] == 2 and fake.completions[-1][0]["etag"] == "etag-1"
+
+
+def test_push_gzips_by_default(w: Witan, fake: Fake, tmp_path) -> None:
+    f = tmp_path / "records.jsonl"
+    f.write_text('{"ok": true}\n' * 50, encoding="utf-8")
+    r = w.projects.push("agent-api-observatory", f)
+    assert fake.upload_inits[-1]["compression"] == "gzip" and fake.upload_inits[-1]["parts"] == 1
+    assert fake.put_bodies[1][0][:2] == b"\x1f\x8b" and r["parts"] == 1
+    assert not (tmp_path / "records.jsonl.witan-upload.gz").exists()
 
 
 def test_pull_falls_back_to_jsonl_when_not_materialized(w: Witan, tmp_path) -> None:
