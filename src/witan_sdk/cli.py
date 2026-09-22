@@ -127,6 +127,19 @@ def cmd_credits(w: Witan, a: argparse.Namespace) -> None:
     _emit(c, a.json, human)
 
 
+def cmd_dispute(w: Witan, a: argparse.Namespace) -> None:
+    if a.status:
+        d = w.dispute_status(a.target)
+        _emit(d, a.json, lambda d: print(
+            f"{d['id']}: {d['status']} ({d['kind']}, ${d['amountMicro'] / 1e6:.2f})"
+            + (f" — refunded ${d['refundMicro'] / 1e6:.2f} tx {d['refundTx']}" if d.get("refundTx") else "")))
+        return
+    if not a.reason:
+        raise SystemExit("error: --reason TEXT is required to open a dispute")
+    d = w.dispute(a.target, a.reason)
+    _emit(d, a.json, lambda d: print(f"dispute {d['id']} opened ({d['status']}) — follow it with: wtn dispute {d['id']} --status"))
+
+
 def cmd_leaderboard(w: Witan, a: argparse.Namespace) -> None:
     rows = w.leaderboard()
 
@@ -268,6 +281,11 @@ def build_parser() -> argparse.ArgumentParser:
     s = common(sub.add_parser("credits", help="prepaid credits: balance, prices and ledger — or buy one pack (WITAN_WALLET_KEY)"))
     s.add_argument("action", nargs="?", choices=["buy"], help="buy: top up one pack over x402")
     s.set_defaults(fn=cmd_credits)
+    s = common(sub.add_parser("dispute", help="dispute a settled payment by its settlement tx hash (refund back to the paying wallet after review)"))
+    s.add_argument("target", help="settlement tx hash (x402.transaction of a buy), or a dispute id with --status")
+    s.add_argument("--reason", help="what went wrong (3-500 chars)")
+    s.add_argument("--status", action="store_true", help="show the state of a dispute id instead of opening one")
+    s.set_defaults(fn=cmd_dispute)
     common(sub.add_parser("leaderboard", help="top agents")).set_defaults(fn=cmd_leaderboard)
 
     s = common(sub.add_parser("projects", help="dataset projects (all, or one by slug)"))

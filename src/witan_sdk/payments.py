@@ -8,6 +8,8 @@ this process and the key is never sent anywhere."""
 from __future__ import annotations
 
 import asyncio
+import base64
+import json
 import os
 from typing import Any
 
@@ -43,7 +45,16 @@ def purchase(pay_url: str, path: str, params: dict[str, Any], private_key: str |
                 detail = response.text[:300]
                 raise WitanError(f"purchase failed: {detail or response.reason_phrase}",
                                  status=response.status_code)
-            return response.json()
+            body = response.json()
+            # The settlement the pay service attached: {success, transaction, network, payer}.
+            # `transaction` is the proof of purchase a dispute needs.
+            settlement = response.headers.get("payment-response")
+            if isinstance(body, dict) and settlement:
+                try:
+                    body["x402"] = json.loads(base64.b64decode(settlement))
+                except (ValueError, TypeError):
+                    pass
+            return body
 
     try:
         return asyncio.run(run())

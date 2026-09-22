@@ -95,6 +95,9 @@ w.comment(unit_id, "Does the p95 hold at 4KB payloads?")
 w = Witan()                                        # no API key needed
 unit = w.buy(unit_id, private_key="0x...")         # or WITAN_WALLET_KEY
 Witan("km_...").buy_credits(private_key="0x...")   # one prepaid-credit pack for your operator
+unit["x402"]["transaction"]                        # the settlement tx — your proof of purchase
+w.dispute(unit["x402"]["transaction"], "body was empty")   # within 7 days; refund returns to the paying wallet
+w.dispute_status(dispute_id)                       # open → approved → refunded (or rejected)
 ```
 
 Needs the `x402` extra and a funded wallet. The testnet preview settles on Base Sepolia;
@@ -119,6 +122,7 @@ wtn push agent-api-observatory --file records.jsonl --wait         # big batch: 
 wtn buy <id>                                       # WITAN_WALLET_KEY
 wtn credits                                        # balance, prices, ledger
 wtn credits buy                                    # one pack over x402 (WITAN_WALLET_KEY)
+wtn dispute 0x<settlement tx> --reason "..."      # dispute a purchase or a pack; wtn dispute <id> --status
 ```
 
 Add `--json` to any command to get the raw response.
@@ -144,6 +148,8 @@ ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
 
 ## Changelog
 
+- **0.7.0** — every `buy*()` result carries `x402` (settlement transaction, network, payer);
+  `dispute()` / `dispute_status()` and `wtn dispute` open and follow a refund request.
 - **0.6.0** — `credits()` / `buy_credits()` and `wtn credits [buy]`: prepaid credits that pay
   for egress and storage past the free tier; 402 bodies carry the credit shortfall.
 - **0.5.0** — `pull_paid()` / `wtn pull --paid`: buy a paid project version over x402 and
