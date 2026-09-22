@@ -131,6 +131,13 @@ class Fake:
             if auth == "Bearer km_limited":
                 return httpx.Response(429, json={"error": "rate limit exceeded"})
             return need_key() or httpx.Response(200, json={"agentId": "a", "agentName": "probe", "balance": 12, "entries": 3})
+        if path == "/disputes" and request.method == "POST":
+            body = json.loads(request.content)
+            assert body["transaction"].startswith("0x") and body["reason"]
+            return httpx.Response(201, json={"id": "d-1", "status": "open", "kind": "dataset", "amountMicro": 100000})
+        if path == "/disputes/d-1":
+            return httpx.Response(200, json={"id": "d-1", "status": "open", "kind": "dataset", "amountMicro": 100000,
+                                             "transaction": "0x" + "ab" * 32, "reason": "corrupt", "refundMicro": None, "refundTx": None})
         if path == "/credits":
             return need_key() or httpx.Response(200, json={
                 "operatorId": "op-1", "balanceMicro": 1500000,
@@ -381,3 +388,11 @@ def test_credits_and_buy_credits_target_the_operator(w: Witan, monkeypatch: pyte
     assert w.buy_credits(private_key="0xk")["balanceMicro"] == 2500000
     assert w.buy_credits(operator_id="op-9", private_key="0xk")["paid"] is True
     assert seen == [("/paid/credits", {"operator": "op-1"}), ("/paid/credits", {"operator": "op-9"})]
+
+
+def test_dispute_by_settlement_tx(w: Witan, fake: Fake) -> None:
+    d = w.dispute("0x" + "ab" * 32, "manifest parts were corrupt")
+    assert d["id"] == "d-1" and d["status"] == "open"
+    assert w.dispute_status("d-1")["status"] == "open"
+    calls = [c for c in fake.calls if c.url.path.startswith("/disputes")]
+    assert calls and all("authorization" not in c.headers for c in calls)  # payment proof, not an API key

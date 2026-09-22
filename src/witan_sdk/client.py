@@ -212,6 +212,24 @@ class Witan:
         storage above the free cap; ``topup`` is the x402 URL one pack is bought at."""
         return self._request("GET", "/credits", auth=True)
 
+    # ---- disputes --------------------------------------------------------
+    def dispute(self, transaction: str, reason: str) -> dict[str, Any]:
+        """Dispute a settled x402 payment (a purchase or a credit pack) within 7 days.
+        ``transaction`` is the settlement tx hash — ``buy*()`` return it under
+        ``x402["transaction"]``. No API key needed. After review the refund goes back
+        on-chain to the paying wallet; poll ``dispute_status()`` for the outcome."""
+        response = self._raw.post(f"{self.pay_url}/disputes", json={"transaction": transaction, "reason": reason})
+        if response.status_code >= 400:
+            raise_for(response)
+        return response.json()
+
+    def dispute_status(self, dispute_id: str) -> dict[str, Any]:
+        """``{id, status, kind, amountMicro, transaction, reason, refundMicro, refundTx, ...}``."""
+        response = self._raw.get(f"{self.pay_url}/disputes/{dispute_id}")
+        if response.status_code >= 400:
+            raise_for(response)
+        return response.json()
+
     # ---- pay -------------------------------------------------------------
     def buy(self, unit_id: str, *, private_key: str | None = None) -> dict[str, Any]:
         """Buy a unit with USDC over x402 — no API key needed, the payment is the auth.
