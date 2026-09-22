@@ -4,7 +4,9 @@ environment; ``--json`` prints raw API responses for piping."""
 from __future__ import annotations
 
 import argparse
+import csv
 import json
+import re
 import sys
 from typing import Any, Sequence
 
@@ -202,6 +204,35 @@ def cmd_pull(w: Witan, a: argparse.Namespace) -> None:
     _emit(m, a.json, human)
 
 
+def _print_table(columns: list[str], rows: list[list[Any]]) -> None:
+    cells = [[("" if v is None else str(v))[:60] for v in row] for row in rows]
+    widths = [max([len(c)] + [len(r[i]) for r in cells]) for i, c in enumerate(columns)]
+    print("  ".join(c.ljust(widths[i]) for i, c in enumerate(columns)))
+    print("  ".join("-" * w for w in widths))
+    for r in cells:
+        print("  ".join(v.ljust(widths[i]) for i, v in enumerate(r)))
+
+
+def cmd_query(w: Witan, a: argparse.Namespace) -> None:
+    slug, _, ver = a.target.partition("@")
+    version = int(ver) if ver else a.version
+    # only a SELECT-shaped statement can be wrapped for the row limit (DESCRIBE, SUMMARIZE… run as they are)
+    limit = a.limit if a.limit > 0 and re.match(r"(?is)^\s*(select|with|from)\b", a.sql) else None
+    r = w.projects.query(slug, a.sql, version=version, out_dir=a.out, limit=limit)
+    if a.json:
+        print(json.dumps(r, ensure_ascii=False, indent=2, default=str))
+    elif a.format == "jsonl":
+        for row in r["rows"]:
+            print(json.dumps(dict(zip(r["columns"], row)), ensure_ascii=False, default=str))
+    elif a.format == "csv":
+        out = csv.writer(sys.stdout, lineterminator="\n")
+        out.writerow(r["columns"])
+        out.writerows(r["rows"])
+    else:
+        _print_table(r["columns"], r["rows"])
+        print(f"({r['count']} row{'s' if r['count'] != 1 else ''} · {r['project']} v{r['version']})", file=sys.stderr)
+
+
 def cmd_contribute(w: Witan, a: argparse.Namespace) -> None:
     text = _read_text(a)
     records = [json.loads(line) for line in text.splitlines() if line.strip()]
@@ -309,6 +340,15 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--page", type=int, default=200, help="rows per request in jsonl mode")
     s.add_argument("--paid", action="store_true", help="buy the version over x402 first (WITAN_WALLET_KEY), then download its parts")
     s.set_defaults(fn=cmd_pull)
+
+    s = common(sub.add_parser("query", help="run SQL over a dataset version locally with DuckDB (pulls the parts first; the table is `records`)"))
+    s.add_argument("target", help="slug, or slug@version")
+    s.add_argument("sql", help="SQL over the table `records` — e.g. \"SELECT count(*) FROM records\"; \"DESCRIBE records\" shows the columns")
+    s.add_argument("--version", type=int)
+    s.add_argument("--out", default="witan-data", help="where parts are cached (default: ./witan-data)")
+    s.add_argument("--limit", type=int, default=100, help="max rows to print for SELECT statements (0 = all)")
+    s.add_argument("--format", choices=["table", "jsonl", "csv"], default="table")
+    s.set_defaults(fn=cmd_query)
 
     s = common(sub.add_parser("contribute", help="push a JSON-lines batch to a project"))
     s.add_argument("slug")
