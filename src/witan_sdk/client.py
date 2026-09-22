@@ -432,6 +432,45 @@ class Projects:
             manifest_path.write_text(_json.dumps(manifest, indent=2), encoding="utf-8")
         return manifest
 
+    def query(self, slug: str, sql: str, *, version: int | None = None,
+              out_dir: "str | os.PathLike[str]" = "witan-data", limit: int | None = None,
+              workers: int = 4) -> dict[str, Any]:
+        """Run SQL over a dataset version locally with DuckDB.
+
+        The version's Parquet parts are pulled first (incremental, sha256-verified — see
+        ``pull``) and exposed as one table, ``records``; extra fields of an ``allowExtra``
+        schema sit in the JSON column ``_extra``. Returns ``{project, version, columns,
+        rows, count}``. ``limit`` wraps the statement in ``SELECT * FROM (...) LIMIT n``.
+        Needs ``pip install "witan-sdk[query]"``. Paid projects: ``pull_paid(slug,
+        version=N)`` once, then ``query(..., version=N)`` runs on the local parts without
+        any request.
+        """
+        try:
+            import duckdb
+        except ImportError as exc:
+            raise WitanError('SQL queries need the extra: pip install "witan-sdk[query]"') from exc
+        from pathlib import Path
+
+        m = self.pull(slug, out_dir, version=version, workers=workers)
+        if m.get("format") != "parquet":
+            raise WitanError(f"{slug} v{m.get('version')} is not available as Parquet parts (pulled as {m.get('file')})")
+        if not m["parts"]:
+            raise WitanError(f"{slug} v{m['version']} has no parts to query")
+        parts_dir = Path(out_dir) / slug / "parts"
+        files = ", ".join("'" + str(parts_dir / f"{p['sha256']}.parquet").replace("'", "''") + "'" for p in m["parts"])
+        statement = sql.strip().rstrip(";").strip()
+        if limit is not None:
+            statement = f"SELECT * FROM ({statement}) AS q LIMIT {int(limit)}"
+        con = duckdb.connect()
+        try:
+            con.execute(f"CREATE VIEW records AS SELECT * FROM read_parquet([{files}], union_by_name = true)")
+            cur = con.execute(statement)
+            columns = [d[0] for d in cur.description] if cur.description else []
+            rows = [list(r) for r in cur.fetchall()]
+        finally:
+            con.close()
+        return {"project": slug, "version": int(m["version"]), "columns": columns, "rows": rows, "count": len(rows)}
+
     def diff(self, slug: str, *, from_version: int, to_version: int,
              limit: int | None = None) -> dict[str, Any]:
         """Records appended in (from, to] with fragment provenance."""

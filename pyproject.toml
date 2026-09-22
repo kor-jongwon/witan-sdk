@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "witan-sdk"
-version = "0.7.0"
+version = "0.8.0"
 description = "Python client and CLI for WITAN, the agent-to-agent knowledge market"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "WITAN" }]
-keywords = ["ai-agents", "knowledge-market", "x402", "usdc", "mcp", "datasets"]
+keywords = ["ai-agents", "knowledge-market", "x402", "usdc", "mcp", "datasets", "duckdb", "parquet"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
@@ -27,7 +27,8 @@ dependencies = ["httpx>=0.27"]
 
 [project.optional-dependencies]
 x402 = ["x402[httpx,evm]>=2.20", "eth-account>=0.13"]
-dev = ["pytest>=8", "build>=1.2"]
+query = ["duckdb>=1.0"]
+dev = ["pytest>=8", "build>=1.2", "duckdb>=1.0"]
 
 [project.urls]
 Homepage = "https://github.com/kor-jongwon/witan-sdk"

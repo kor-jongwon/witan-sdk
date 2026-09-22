@@ -390,6 +390,34 @@ def test_credits_and_buy_credits_target_the_operator(w: Witan, monkeypatch: pyte
     assert seen == [("/paid/credits", {"operator": "op-1"}), ("/paid/credits", {"operator": "op-9"})]
 
 
+def test_query_runs_sql_over_local_parts(w: Witan, tmp_path) -> None:
+    duckdb = pytest.importorskip("duckdb")
+    root = tmp_path / "agent-api-observatory"
+    parts = root / "parts"
+    parts.mkdir(parents=True)
+    con = duckdb.connect()
+    con.execute(f"COPY (SELECT 'a' AS target, 10 AS latency_ms UNION ALL SELECT 'b', 30) TO '{parts / 'p1.parquet'}' (FORMAT PARQUET)")
+    con.execute(f"COPY (SELECT 'c' AS target, 50 AS latency_ms, true AS ok) TO '{parts / 'p2.parquet'}' (FORMAT PARQUET)")
+    con.close()
+    manifest_parts = []
+    for name, records in (("p1", 2), ("p2", 1)):
+        f = parts / f"{name}.parquet"
+        data = f.read_bytes()
+        sha = hashlib.sha256(data).hexdigest()
+        f.rename(parts / f"{sha}.parquet")
+        manifest_parts.append({"sha256": sha, "bytes": len(data), "records": records})
+    (root / "v7").mkdir()
+    (root / "v7" / "manifest.json").write_text(json.dumps({
+        "format": "parquet", "project": "agent-api-observatory", "version": 7,
+        "parts": manifest_parts, "totals": {"records": 3}}), encoding="utf-8")
+    # a complete local version is queried without any request; parts with different columns union by name
+    r = w.projects.query("agent-api-observatory", "SELECT target, latency_ms, ok FROM records ORDER BY latency_ms", version=7, out_dir=tmp_path)
+    assert r["columns"] == ["target", "latency_ms", "ok"] and r["count"] == 3
+    assert r["rows"][0] == ["a", 10, None] and r["rows"][2] == ["c", 50, True]
+    top = w.projects.query("agent-api-observatory", "SELECT count(*) AS n FROM records; ", version=7, out_dir=tmp_path, limit=5)
+    assert top == {"project": "agent-api-observatory", "version": 7, "columns": ["n"], "rows": [[3]], "count": 1}
+
+
 def test_dispute_by_settlement_tx(w: Witan, fake: Fake) -> None:
     d = w.dispute("0x" + "ab" * 32, "manifest parts were corrupt")
     assert d["id"] == "d-1" and d["status"] == "open"

@@ -66,6 +66,18 @@ Read the parts with anything that speaks Parquet (DuckDB, pandas, Polars, `datas
 `pull(..., format="jsonl")` pages through `/data` and writes `records.jsonl` instead —
 no object-store access, no extra tooling.
 
+`query` runs SQL right where the parts are pulled — DuckDB reads them as one table,
+`records`, so a question costs no server round-trip after the first pull:
+
+```python
+w.projects.query("agent-api-observatory", "SELECT target, avg(latency_ms) AS p FROM records GROUP BY 1 ORDER BY p", version=110)
+# {'project': ..., 'version': 110, 'columns': ['target', 'p'], 'rows': [[...], ...], 'count': 6}
+```
+
+Needs `pip install "witan-sdk[query]"`. Extra fields of an `allowExtra` schema live in the
+JSON column `_extra` (`json_extract(_extra, '$.seq')`). Paid projects: `pull_paid(slug, version=N)`
+once, then `query(..., version=N)` works on the local parts.
+
 Paid projects answer 402 to `pull`; `pull_paid` buys the version over x402 (the paid
 answer *is* the manifest with 15-minute part URLs) and lays the parts out the same way.
 A version already complete on disk is never bought twice.
@@ -117,6 +129,7 @@ wtn data agent-api-observatory --limit 50 > records.jsonl
 wtn pull agent-api-observatory@110                 # parts + manifest, incremental, sha256-verified
 wtn pull agent-api-observatory --format jsonl      # records.jsonl via /data instead
 wtn pull paid-project@3 --paid                     # x402 buy → parts, same layout (WITAN_WALLET_KEY)
+wtn query agent-api-observatory "SELECT count(*) FROM records"   # DuckDB over the pulled parts (--format csv|jsonl)
 wtn contribute agent-api-observatory --file records.jsonl --wait   # small batch via JSON
 wtn push agent-api-observatory --file records.jsonl --wait         # big batch: resumable multipart, gzip
 wtn buy <id>                                       # WITAN_WALLET_KEY
@@ -148,6 +161,8 @@ ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
 
 ## Changelog
 
+- **0.8.0** — `projects.query()` / `wtn query`: SQL over a dataset version with DuckDB on the
+  locally pulled parts (`pip install "witan-sdk[query]"`).
 - **0.7.0** — every `buy*()` result carries `x402` (settlement transaction, network, payer);
   `dispute()` / `dispute_status()` and `wtn dispute` open and follow a refund request.
 - **0.6.0** — `credits()` / `buy_credits()` and `wtn credits [buy]`: prepaid credits that pay
