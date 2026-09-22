@@ -50,6 +50,7 @@ c = w.projects.contribute("agent-api-observatory", records, source_declaration="
 w.projects.wait_contribution("agent-api-observatory", c["id"])
 w.projects.diff("agent-api-observatory", from_version=100, to_version=110)
 w.projects.manifest("agent-api-observatory", version=110)                 # parts + 15-minute URLs
+w.projects.pull_paid("paid-project", "witan-data", private_key="0x...")   # x402 buy → parts on disk
 ```
 
 `pull` fetches a version's content-addressed Parquet parts straight from the object store,
@@ -64,6 +65,10 @@ witan-data/agent-api-observatory/v110/manifest.json       which parts make v110
 Read the parts with anything that speaks Parquet (DuckDB, pandas, Polars, `datasets`).
 `pull(..., format="jsonl")` pages through `/data` and writes `records.jsonl` instead —
 no object-store access, no extra tooling.
+
+Paid projects answer 402 to `pull`; `pull_paid` buys the version over x402 (the paid
+answer *is* the manifest with 15-minute part URLs) and lays the parts out the same way.
+A version already complete on disk is never bought twice.
 
 Going the other way, `push` uploads a JSON-lines file (one record per line, up to 5 GB)
 as one contribution: gzipped, split into parts, PUT in parallel straight to the object
@@ -107,6 +112,7 @@ wtn projects
 wtn data agent-api-observatory --limit 50 > records.jsonl
 wtn pull agent-api-observatory@110                 # parts + manifest, incremental, sha256-verified
 wtn pull agent-api-observatory --format jsonl      # records.jsonl via /data instead
+wtn pull paid-project@3 --paid                     # x402 buy → parts, same layout (WITAN_WALLET_KEY)
 wtn contribute agent-api-observatory --file records.jsonl --wait   # small batch via JSON
 wtn push agent-api-observatory --file records.jsonl --wait         # big batch: resumable multipart, gzip
 wtn buy <id>                                       # WITAN_WALLET_KEY
@@ -132,6 +138,9 @@ and 50 GB of egress a month for what their agents pull (manifests issued, record
 
 ## Changelog
 
+- **0.5.0** — `pull_paid()` / `wtn pull --paid`: buy a paid project version over x402 and
+  download its parts; the pay service now answers with the version manifest (part URLs)
+  instead of an inline page of records.
 - **0.4.0** — `quota()` / `wtn quota`; 402 quota answers carry the usage in the error body.
 - **0.3.0** — `push`: resumable multipart upload of JSON-lines files (gzip, parallel parts,
   up to 5 GB) straight to the object store; `wtn push`.

@@ -153,7 +153,10 @@ def cmd_data(w: Witan, a: argparse.Namespace) -> None:
 def cmd_pull(w: Witan, a: argparse.Namespace) -> None:
     slug, _, ver = a.target.partition("@")
     version = int(ver) if ver else a.version
-    m = w.projects.pull(slug, a.out, version=version, format=a.format, page=a.page, workers=a.workers)
+    if a.paid:
+        m = w.projects.pull_paid(slug, a.out, version=version, workers=a.workers)
+    else:
+        m = w.projects.pull(slug, a.out, version=version, format=a.format, page=a.page, workers=a.workers)
 
     def human(m: dict[str, Any]) -> None:
         if m.get("format") == "parquet":
@@ -264,6 +267,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="parquet: content-addressed parts from the object store, incremental (default); jsonl: page through /data")
     s.add_argument("--workers", type=int, default=4, help="parallel part downloads")
     s.add_argument("--page", type=int, default=200, help="rows per request in jsonl mode")
+    s.add_argument("--paid", action="store_true", help="buy the version over x402 first (WITAN_WALLET_KEY), then download its parts")
     s.set_defaults(fn=cmd_pull)
 
     s = common(sub.add_parser("contribute", help="push a JSON-lines batch to a project"))
