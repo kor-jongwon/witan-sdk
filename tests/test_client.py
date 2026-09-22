@@ -346,3 +346,21 @@ def test_buy_without_extra_or_key(w: Witan, monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.delenv("WITAN_WALLET_KEY", raising=False)
     with pytest.raises(PaymentRequiredError):
         w.buy(UNIT)
+
+
+def test_pull_paid_materializes_the_bought_manifest(w: Witan, fake: Fake, tmp_path, monkeypatch) -> None:
+    bought: list[tuple[str, int | None]] = []
+
+    def fake_buy(slug: str, *, version: int | None = None, private_key: str | None = None) -> dict:
+        bought.append((slug, version))
+        return {**manifest_for(110), "project": "paid-one", "paid": True}
+
+    monkeypatch.setattr(w, "buy_dataset", fake_buy)
+    m = w.projects.pull_paid("paid-one", tmp_path, version=110, private_key="0xkey")
+    assert bought == [("paid-one", 110)] and m["format"] == "parquet" and m["downloaded"] == 2 and m["count"] == 3
+    assert "paid" not in m and "urlExpiresAt" not in m and all("url" not in p for p in m["parts"])
+    parts = tmp_path / "paid-one" / "parts"
+    assert (parts / f"{SHA_A}.parquet").read_bytes() == PART_A and (parts / f"{SHA_B}.parquet").read_bytes() == PART_B
+    n = len(fake.calls)
+    again = w.projects.pull_paid("paid-one", tmp_path, version=110, private_key="0xkey")
+    assert again["version"] == 110 and bought == [("paid-one", 110)] and len(fake.calls) == n  # complete on disk: no second purchase

@@ -275,35 +275,73 @@ class Projects:
             return self._pull_jsonl(slug, out_dir, version=version, page=page)
         if format != "parquet":
             raise ValueError("format must be 'parquet' or 'jsonl'")
-        import datetime as _dt
-        import json as _json
-        from concurrent.futures import ThreadPoolExecutor
         from pathlib import Path
 
         from .errors import ConflictError
 
         root = Path(out_dir) / slug
-        parts_dir = root / "parts"
         if version is not None:
-            local = root / f"v{version}" / "manifest.json"
-            if local.exists():
-                m = _json.loads(local.read_text(encoding="utf-8"))
-                if m.get("format") == "parquet" and all(
-                    _present(parts_dir / f"{p['sha256']}.parquet", p["bytes"]) for p in m["parts"]
-                ):
-                    return m
+            cached = self._cached(root, version)
+            if cached is not None:
+                return cached
         try:
             remote = self.manifest(slug, version=version)
         except ConflictError:
             return self._pull_jsonl(slug, out_dir, version=version, page=page)
+        return self._materialize(slug, root, remote, workers)
+
+    def pull_paid(self, slug: str, out_dir: "str | os.PathLike[str]" = "witan-data", *,
+                  version: int | None = None, private_key: str | None = None,
+                  workers: int = 4) -> dict[str, Any]:
+        """Buy one version of a paid project over x402 and lay it out like ``pull``.
+
+        The paid answer is the version manifest with 15-minute part URLs; the parts are
+        downloaded and sha256-verified exactly as ``pull`` does, into the same
+        ``out_dir/<slug>/parts`` layout. Needs the x402 extra and a wallet key (see
+        ``Witan.buy``). A version whose parts are already complete on disk is returned
+        from the local manifest without paying again.
+        """
+        from pathlib import Path
+
+        root = Path(out_dir) / slug
+        if version is not None:
+            cached = self._cached(root, version)
+            if cached is not None:
+                return cached
+        remote = self._c.buy_dataset(slug, version=version, private_key=private_key)
+        return self._materialize(slug, root, remote, workers)
+
+    def _cached(self, root: Any, version: int) -> dict[str, Any] | None:
+        """The local manifest of ``version`` when every part it lists is on disk."""
+        import json as _json
+
+        local = root / f"v{version}" / "manifest.json"
+        if not local.exists():
+            return None
+        m = _json.loads(local.read_text(encoding="utf-8"))
+        parts_dir = root / "parts"
+        if m.get("format") == "parquet" and all(
+            _present(parts_dir / f"{p['sha256']}.parquet", p["bytes"]) for p in m["parts"]
+        ):
+            return m
+        return None
+
+    def _materialize(self, slug: str, root: Any, remote: dict[str, Any], workers: int) -> dict[str, Any]:
+        """Download the parts a presigned manifest lists (skipping those already on
+        disk) and write the version's local manifest."""
+        import datetime as _dt
+        import json as _json
+        from concurrent.futures import ThreadPoolExecutor
+
         v = int(remote["version"])
+        parts_dir = root / "parts"
         vdir = root / f"v{v}"
         parts_dir.mkdir(parents=True, exist_ok=True)
         vdir.mkdir(parents=True, exist_ok=True)
         todo = [p for p in remote["parts"] if not _present(parts_dir / f"{p['sha256']}.parquet", p["bytes"])]
         with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
             list(pool.map(lambda p: self._c._download_part(p, parts_dir), todo))
-        local_manifest: dict[str, Any] = {k: val for k, val in remote.items() if k != "urlExpiresAt"}
+        local_manifest: dict[str, Any] = {k: val for k, val in remote.items() if k not in ("urlExpiresAt", "paid")}
         local_manifest["parts"] = [{k: val for k, val in p.items() if k != "url"} for p in remote["parts"]]
         local_manifest.update({
             "format": "parquet",
