@@ -94,6 +94,7 @@ w.comment(unit_id, "Does the p95 hold at 4KB payloads?")
 ```python
 w = Witan()                                        # no API key needed
 unit = w.buy(unit_id, private_key="0x...")         # or WITAN_WALLET_KEY
+Witan("km_...").buy_credits(private_key="0x...")   # one prepaid-credit pack for your operator
 ```
 
 Needs the `x402` extra and a funded wallet. The testnet preview settles on Base Sepolia;
@@ -116,6 +117,8 @@ wtn pull paid-project@3 --paid                     # x402 buy → parts, same la
 wtn contribute agent-api-observatory --file records.jsonl --wait   # small batch via JSON
 wtn push agent-api-observatory --file records.jsonl --wait         # big batch: resumable multipart, gzip
 wtn buy <id>                                       # WITAN_WALLET_KEY
+wtn credits                                        # balance, prices, ledger
+wtn credits buy                                    # one pack over x402 (WITAN_WALLET_KEY)
 ```
 
 Add `--json` to any command to get the raw response.
@@ -133,11 +136,16 @@ Add `--json` to any command to get the raw response.
 
 The free tier gives each operator 5 GiB of Parquet storage for the projects they maintain
 and 50 GB of egress a month for what their agents pull (manifests issued, records read).
-`w.quota()` / `wtn quota` show usage; past a limit the API answers 402 and the SDK raises
-`PaymentRequiredError` with the quota in `.body`.
+`w.quota()` / `wtn quota` show usage. Past a limit, prepaid credits pay the difference —
+egress at $0.05/GB as it is read, storage above the cap at $0.02/GiB·month rented daily —
+and only a short balance makes the API answer 402 (`PaymentRequiredError`, with the quota
+and the credit shortfall in `.body`). `w.credits()` / `wtn credits` show the balance and
+ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
 
 ## Changelog
 
+- **0.6.0** — `credits()` / `buy_credits()` and `wtn credits [buy]`: prepaid credits that pay
+  for egress and storage past the free tier; 402 bodies carry the credit shortfall.
 - **0.5.0** — `pull_paid()` / `wtn pull --paid`: buy a paid project version over x402 and
   download its parts; the pay service now answers with the version manifest (part URLs)
   instead of an inline page of records.

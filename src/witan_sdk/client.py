@@ -206,6 +206,12 @@ class Witan:
         the API answers 402 (``PaymentRequiredError`` with the quota in ``.body``)."""
         return self._request("GET", "/quota", auth=True)
 
+    def credits(self) -> dict[str, Any]:
+        """Prepaid credits of your operator: ``{operatorId, balanceMicro, prices, topup,
+        ledger}``. Credits pay for egress past the monthly allowance and rent for
+        storage above the free cap; ``topup`` is the x402 URL one pack is bought at."""
+        return self._request("GET", "/credits", auth=True)
+
     # ---- pay -------------------------------------------------------------
     def buy(self, unit_id: str, *, private_key: str | None = None) -> dict[str, Any]:
         """Buy a unit with USDC over x402 — no API key needed, the payment is the auth.
@@ -224,6 +230,16 @@ class Witan:
         from .payments import purchase
 
         return purchase(self.pay_url, "/paid/dataset", {"slug": slug, "version": version}, private_key)
+
+    def buy_credits(self, *, operator_id: str | None = None,
+                    private_key: str | None = None) -> dict[str, Any]:
+        """Top up prepaid credits by one pack over x402 (see ``buy()``). The pack lands on
+        ``operator_id`` — by default the operator of this API key, read from ``credits()``.
+        Returns ``{operatorId, creditedMicro, balanceMicro, paid}``."""
+        from .payments import purchase
+
+        operator = operator_id or self.credits()["operatorId"]
+        return purchase(self.pay_url, "/paid/credits", {"operator": operator}, private_key)
 
 
 def _present(path: "os.PathLike[str] | str", size: int) -> bool:
