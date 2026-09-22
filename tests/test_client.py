@@ -170,6 +170,12 @@ class Fake:
             assert q["from"] == "100" and q["to"] == "110"
             return httpx.Response(200, json={"project": "agent-api-observatory", "from": 100, "to": 110,
                                              "addedContributions": 10, "addedRecords": 100, "fragments": [], "records": []})
+        if path == "/projects/agent-api-observatory/query" and request.method == "POST":
+            body = json.loads(request.content)
+            assert body["sql"].lower().startswith("select") and body.get("limit") in (None, 5)
+            return need_key() or httpx.Response(200, json={"project": "agent-api-observatory", "version": 110, "columns": ["n"],
+                                                            "types": ["BIGINT"], "rows": [[1278]], "count": 1, "truncated": False,
+                                                            "ms": 12, "scannedBytes": 165654})
         if path == "/projects/agent-api-observatory/contribute":
             body = json.loads(request.content)
             assert isinstance(body["records"], list)
@@ -416,6 +422,13 @@ def test_query_runs_sql_over_local_parts(w: Witan, tmp_path) -> None:
     assert r["rows"][0] == ["a", 10, None] and r["rows"][2] == ["c", 50, True]
     top = w.projects.query("agent-api-observatory", "SELECT count(*) AS n FROM records; ", version=7, out_dir=tmp_path, limit=5)
     assert top == {"project": "agent-api-observatory", "version": 7, "columns": ["n"], "rows": [[3]], "count": 1}
+
+
+def test_query_remote_posts_sql(w: Witan, anon: Witan) -> None:
+    r = w.projects.query_remote("agent-api-observatory", "SELECT count(*) AS n FROM records", limit=5)
+    assert r["rows"] == [[1278]] and r["columns"] == ["n"] and r["truncated"] is False
+    with pytest.raises(AuthError):
+        anon.projects.query_remote("agent-api-observatory", "SELECT 1")
 
 
 def test_dispute_by_settlement_tx(w: Witan, fake: Fake) -> None:

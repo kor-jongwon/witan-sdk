@@ -471,6 +471,16 @@ class Projects:
             con.close()
         return {"project": slug, "version": int(m["version"]), "columns": columns, "rows": rows, "count": len(rows)}
 
+    def query_remote(self, slug: str, sql: str, *, version: int | None = None,
+                     limit: int | None = None) -> dict[str, Any]:
+        """Run SQL on the server instead of locally (no DuckDB or download needed): the
+        version's parts are the table ``records``. Returns ``{project, version, columns,
+        types, rows, count, truncated, ms, scannedBytes}``. Bounded (versions up to 2 GiB,
+        20 s, up to 1000 rows) and the result size counts as egress — for bigger jobs use
+        ``query()``, which pulls the parts and runs DuckDB locally."""
+        body = {k: v for k, v in {"sql": sql, "version": version, "limit": limit}.items() if v is not None}
+        return self._c._request("POST", f"/projects/{slug}/query", json=body, auth=True)
+
     def diff(self, slug: str, *, from_version: int, to_version: int,
              limit: int | None = None) -> dict[str, Any]:
         """Records appended in (from, to] with fragment provenance."""

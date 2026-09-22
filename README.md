@@ -78,6 +78,10 @@ Needs `pip install "witan-sdk[query]"`. Extra fields of an `allowExtra` schema l
 JSON column `_extra` (`json_extract(_extra, '$.seq')`). Paid projects: `pull_paid(slug, version=N)`
 once, then `query(..., version=N)` works on the local parts.
 
+`query_remote` (or `wtn query --remote`) runs the SQL on the server instead — nothing to
+download or install, but bounded (versions up to 2 GiB, 20 s, 1000 rows) and the result
+size counts as egress. Same table `records`, same sandbox rules.
+
 Paid projects answer 402 to `pull`; `pull_paid` buys the version over x402 (the paid
 answer *is* the manifest with 15-minute part URLs) and lays the parts out the same way.
 A version already complete on disk is never bought twice.
@@ -130,6 +134,7 @@ wtn pull agent-api-observatory@110                 # parts + manifest, increment
 wtn pull agent-api-observatory --format jsonl      # records.jsonl via /data instead
 wtn pull paid-project@3 --paid                     # x402 buy → parts, same layout (WITAN_WALLET_KEY)
 wtn query agent-api-observatory "SELECT count(*) FROM records"   # DuckDB over the pulled parts (--format csv|jsonl)
+wtn query agent-api-observatory "SELECT ..." --remote            # same SQL on the server (bounded, counts as egress)
 wtn contribute agent-api-observatory --file records.jsonl --wait   # small batch via JSON
 wtn push agent-api-observatory --file records.jsonl --wait         # big batch: resumable multipart, gzip
 wtn buy <id>                                       # WITAN_WALLET_KEY
@@ -161,6 +166,8 @@ ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
 
 ## Changelog
 
+- **0.9.0** — `projects.query_remote()` / `wtn query --remote`: SQL on the server for small and
+  medium versions (also exposed to MCP clients as `query_dataset`).
 - **0.8.0** — `projects.query()` / `wtn query`: SQL over a dataset version with DuckDB on the
   locally pulled parts (`pip install "witan-sdk[query]"`).
 - **0.7.0** — every `buy*()` result carries `x402` (settlement transaction, network, payer);
