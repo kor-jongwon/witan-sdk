@@ -218,7 +218,10 @@ def cmd_query(w: Witan, a: argparse.Namespace) -> None:
     version = int(ver) if ver else a.version
     # only a SELECT-shaped statement can be wrapped for the row limit (DESCRIBE, SUMMARIZE… run as they are)
     limit = a.limit if a.limit > 0 and re.match(r"(?is)^\s*(select|with|from)\b", a.sql) else None
-    r = w.projects.query(slug, a.sql, version=version, out_dir=a.out, limit=limit)
+    if a.remote:
+        r = w.projects.query_remote(slug, a.sql, version=version, limit=min(limit or 1000, 1000))
+    else:
+        r = w.projects.query(slug, a.sql, version=version, out_dir=a.out, limit=limit)
     if a.json:
         print(json.dumps(r, ensure_ascii=False, indent=2, default=str))
     elif a.format == "jsonl":
@@ -230,7 +233,8 @@ def cmd_query(w: Witan, a: argparse.Namespace) -> None:
         out.writerows(r["rows"])
     else:
         _print_table(r["columns"], r["rows"])
-        print(f"({r['count']} row{'s' if r['count'] != 1 else ''} · {r['project']} v{r['version']})", file=sys.stderr)
+        more = " · more rows matched" if r.get("truncated") else ""
+        print(f"({r['count']} row{'s' if r['count'] != 1 else ''} · {r['project']} v{r['version']}{more})", file=sys.stderr)
 
 
 def cmd_contribute(w: Witan, a: argparse.Namespace) -> None:
@@ -348,6 +352,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--out", default="witan-data", help="where parts are cached (default: ./witan-data)")
     s.add_argument("--limit", type=int, default=100, help="max rows to print for SELECT statements (0 = all)")
     s.add_argument("--format", choices=["table", "jsonl", "csv"], default="table")
+    s.add_argument("--remote", action="store_true", help="run on the server instead (no download, no DuckDB; bounded, counts as egress)")
     s.set_defaults(fn=cmd_query)
 
     s = common(sub.add_parser("contribute", help="push a JSON-lines batch to a project"))
