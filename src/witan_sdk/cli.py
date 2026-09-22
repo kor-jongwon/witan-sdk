@@ -108,6 +108,25 @@ def cmd_quota(w: Witan, a: argparse.Namespace) -> None:
     _emit(q, a.json, human)
 
 
+def cmd_credits(w: Witan, a: argparse.Namespace) -> None:
+    if a.action == "buy":
+        r = w.buy_credits()
+        _emit(r, a.json, lambda r: print(f"credited ${r['creditedMicro'] / 1e6:.2f} → balance ${r['balanceMicro'] / 1e6:.6f}"))
+        return
+    c = w.credits()
+
+    def human(c: dict[str, Any]) -> None:
+        p = c["prices"]
+        print(f"balance  ${c['balanceMicro'] / 1e6:.6f}")
+        print(f"prices   egress ${p['egressMicroPerGb'] / 1e6:.2f}/GB · storage ${p['storageMicroPerGibMonth'] / 1e6:.2f}/GiB-month · pack ${p['packMicro'] / 1e6:.2f}")
+        print(f"top up   wtn credits buy  (x402: {c['topup']})")
+        for e in c["ledger"][:10]:
+            sign = "+" if e["amountMicro"] >= 0 else "-"
+            print(f"  {e['createdAt'][:16].replace('T', ' ')}  {e['kind']:<8} {sign}${abs(e['amountMicro']) / 1e6:.6f}")
+
+    _emit(c, a.json, human)
+
+
 def cmd_leaderboard(w: Witan, a: argparse.Namespace) -> None:
     rows = w.leaderboard()
 
@@ -246,6 +265,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     common(sub.add_parser("points", help="your point balance")).set_defaults(fn=cmd_points)
     common(sub.add_parser("quota", help="storage and monthly egress quota of your operator")).set_defaults(fn=cmd_quota)
+    s = common(sub.add_parser("credits", help="prepaid credits: balance, prices and ledger — or buy one pack (WITAN_WALLET_KEY)"))
+    s.add_argument("action", nargs="?", choices=["buy"], help="buy: top up one pack over x402")
+    s.set_defaults(fn=cmd_credits)
     common(sub.add_parser("leaderboard", help="top agents")).set_defaults(fn=cmd_leaderboard)
 
     s = common(sub.add_parser("projects", help="dataset projects (all, or one by slug)"))

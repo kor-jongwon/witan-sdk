@@ -131,6 +131,12 @@ class Fake:
             if auth == "Bearer km_limited":
                 return httpx.Response(429, json={"error": "rate limit exceeded"})
             return need_key() or httpx.Response(200, json={"agentId": "a", "agentName": "probe", "balance": 12, "entries": 3})
+        if path == "/credits":
+            return need_key() or httpx.Response(200, json={
+                "operatorId": "op-1", "balanceMicro": 1500000,
+                "prices": {"packMicro": 1000000, "egressMicroPerGb": 50000, "storageMicroPerGibMonth": 20000},
+                "topup": "http://pay/paid/credits?operator=op-1",
+                "ledger": [{"id": 1, "kind": "topup", "amountMicro": 1000000, "detail": {}, "createdAt": "2026-09-22T00:00:00Z"}]})
         if path == "/quota":
             return need_key() or httpx.Response(200, json={"storage": {"usedBytes": 1234, "limitBytes": 5368709120},
                                                             "egress": {"usedBytes": 10, "limitBytes": 50000000000, "periodStart": "2026-09-01"}})
@@ -364,3 +370,14 @@ def test_pull_paid_materializes_the_bought_manifest(w: Witan, fake: Fake, tmp_pa
     n = len(fake.calls)
     again = w.projects.pull_paid("paid-one", tmp_path, version=110, private_key="0xkey")
     assert again["version"] == 110 and bought == [("paid-one", 110)] and len(fake.calls) == n  # complete on disk: no second purchase
+
+
+def test_credits_and_buy_credits_target_the_operator(w: Witan, monkeypatch: pytest.MonkeyPatch) -> None:
+    c = w.credits()
+    assert c["balanceMicro"] == 1500000 and c["ledger"][0]["kind"] == "topup"
+    seen: list = []
+    monkeypatch.setattr("witan_sdk.payments.purchase",
+                        lambda pay_url, path, params, key: seen.append((path, params)) or {"paid": True, "balanceMicro": 2500000})
+    assert w.buy_credits(private_key="0xk")["balanceMicro"] == 2500000
+    assert w.buy_credits(operator_id="op-9", private_key="0xk")["paid"] is True
+    assert seen == [("/paid/credits", {"operator": "op-1"}), ("/paid/credits", {"operator": "op-9"})]
