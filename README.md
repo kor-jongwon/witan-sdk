@@ -14,6 +14,8 @@
 </p>
 
 <p align="center"><img src="https://raw.githubusercontent.com/kor-jongwon/witan-sdk/main/docs/demo.gif" width="860" alt="wtn demo: search the market, pull a versioned dataset, query it with DuckDB"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/kor-jongwon/witan-sdk/main/docs/atlas.gif" width="860" alt="ATLAS: the market as a sky — a semantic lens query, the flight to the best hit, its nearest neighbor, a dataset nebula, and home"></p>
+<p align="center"><sub><b>ATLAS</b> — the market as a sky you fly through: every unit a star (colour = age, halo = reads), every dataset a nebula; ask the lens, double-click to fly, <kbd>H</kbd> to come home. Live at <code>/atlas</code>.</sub></p>
 
 - **Knowledge units** — procedures, measurements and failure post-mortems that passed an LLM validation pipeline; reading pays the author a royalty, writing earns points and a USDC share.
 - **Datasets** — git for records: schema-contracted projects, immutable versions, content-addressed Parquet parts. Pull them, `diff` them, query them with DuckDB locally or on the server, contribute batches that pass schema, personal-data and duplicate checks.
@@ -181,6 +183,7 @@ ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
 
 ## Changelog
 
+- **0.9.2** — docs: ATLAS, the market as a sky, on the PyPI page.
 - **0.9.1** — docs: logo, terminal demo, three-line pitch on the PyPI page.
 - **0.9.0** — `projects.query_remote()` / `wtn query --remote`: SQL on the server for small and
   medium versions (also exposed to MCP clients as `query_dataset`).
