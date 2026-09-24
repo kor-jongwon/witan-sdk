@@ -260,6 +260,62 @@ def cmd_push(w: Witan, a: argparse.Namespace) -> None:
     _emit(r, a.json, human)
 
 
+def cmd_save(w: Witan, a: argparse.Namespace) -> None:
+    slug, _, ver = a.target.partition("@")
+    version = int(ver) if ver else a.version
+    r = w.projects.save(slug, a.output, version=version, paid=a.paid, cache_dir=a.cache, workers=a.workers)
+
+    def human(r: dict[str, Any]) -> None:
+        how = "from the local copy, no network" if r["offline"] else f"parts cached in {a.cache}/{r['project']}/parts/"
+        print(f"{r['project']} v{r['version']}: {r['records']} records in {r['parts']} part{'s' if r['parts'] != 1 else ''} "
+              f"({_size(r['bytes'])}) → {r['path']}")
+        print(f"manifest sha256 {r['manifestSha256'][:16]}… · {how}")
+
+    _emit(r, a.json, human)
+
+
+def cmd_load(w: Witan, a: argparse.Namespace) -> None:
+    if a.push:
+        r = w.projects.push_bundle(a.file, a.push, source_declaration=a.source, out_dir=a.out,
+                                   allow_paid=a.allow_paid, wait=not a.no_wait, workers=a.workers)
+
+        def human_push(r: dict[str, Any]) -> None:
+            b = r["bundle"]
+            st = r.get("status", "submitted")
+            if st == "merged":
+                print(f"merged into {a.push} v{r.get('mergedVersion')} · accepted {r.get('acceptedCount')}/{b['records']} "
+                      f"from {b['project']} v{b['version']}")
+            elif st == "rejected":
+                v = r.get("verdict") or {}
+                print(f"rejected by {a.push} ({v.get('gate', '?')}): {v.get('reason', '')}")
+            else:
+                print(f"uploaded · contribution {r.get('contributionId')} is {st}; the gates run on the origin")
+
+        _emit(r, a.json, human_push)
+        if r.get("status") == "rejected":
+            raise WitanError(f"the bundle's records were rejected by {a.push}")
+        return
+    r = w.projects.load(a.file, a.out, check=a.check)
+
+    def human(r: dict[str, Any]) -> None:
+        head = f"{r['project']} v{r['version']}: {r['records']} records in {r['parts']} part{'s' if r['parts'] != 1 else ''} " \
+               f"({_size(r['bytes'])}), saved {r.get('savedAt')} from {r.get('source')}"
+        if r["out"] is None:
+            print(f"ok · {head} · every part sha256-verified")
+        else:
+            print(f"{head} → {r['out']} ({r['written']} new part{'s' if r['written'] != 1 else ''})")
+            print(f'query it offline: wtn query {r["project"]}@{r["version"]} "SELECT count(*) FROM records" --out {a.out}')
+
+    _emit(r, a.json, human)
+
+
+def _size(n: int) -> str:
+    for unit, div in (("GiB", 1024 ** 3), ("MiB", 1024 ** 2), ("KiB", 1024)):
+        if n >= div:
+            return f"{n / div:.1f} {unit}"
+    return f"{n} B"
+
+
 def cmd_buy(w: Witan, a: argparse.Namespace) -> None:
     unit = w.buy(a.id)
     _emit(unit, a.json, lambda u: print(f"# {u.get('title', a.id)}\n\n{u.get('body', json.dumps(u))}"))
@@ -371,6 +427,26 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--workers", type=int, default=4, help="parallel part uploads")
     s.add_argument("--wait", action="store_true", help="block until merged or rejected")
     s.set_defaults(fn=cmd_push)
+
+    s = common(sub.add_parser("save", help="write one project version to a single bundle file, like docker save (slug or slug@version)"))
+    s.add_argument("target", help="slug, or slug@version (latest when omitted)")
+    s.add_argument("--version", type=int)
+    s.add_argument("-o", "--output", help="bundle path (default: ./<slug>-v<N>.witan)")
+    s.add_argument("--cache", default="witan-data", help="where parts are pulled to and kept (default: ./witan-data)")
+    s.add_argument("--paid", action="store_true", help="buy the version over x402 first (WITAN_WALLET_KEY)")
+    s.add_argument("--workers", type=int, default=4, help="parallel part downloads")
+    s.set_defaults(fn=cmd_save)
+
+    s = common(sub.add_parser("load", help="verify a bundle and lay it out locally like pull, like docker load — or push its records to a project"))
+    s.add_argument("file", help="a .witan bundle")
+    s.add_argument("--out", default="witan-data", help="root directory (default: ./witan-data)")
+    s.add_argument("--check", action="store_true", help="verify only, write nothing")
+    s.add_argument("--push", metavar="SLUG", help="contribute the bundle's records to this project on the origin (needs the query extra)")
+    s.add_argument("--source", help="source declaration for --push (default: the bundle's origin and license)")
+    s.add_argument("--allow-paid", action="store_true", help="allow --push of a paid project's bundle (you hold the rights)")
+    s.add_argument("--no-wait", action="store_true", help="with --push: return once uploaded, do not wait for the merge")
+    s.add_argument("--workers", type=int, default=4, help="parallel part uploads for --push")
+    s.set_defaults(fn=cmd_load)
 
     s = common(sub.add_parser("buy", help="buy a unit with USDC over x402 (WITAN_WALLET_KEY)"))
     s.add_argument("id")
