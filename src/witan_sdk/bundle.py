@@ -283,6 +283,21 @@ def local_manifest(manifest: dict[str, Any], header: dict[str, Any], bundle_name
     return m
 
 
+def record_from_row(columns: list[str], row: Any) -> dict[str, Any]:
+    """One Parquet row as the API returns the record: null fields omitted, the ``_extra`` JSON
+    column of an ``allowExtra`` schema folded back in."""
+    rec: dict[str, Any] = {}
+    for col, val in zip(columns, row):
+        if col == EXTRA_COLUMN:
+            if val:
+                rec.update(json.loads(val))
+            continue
+        if val is None:
+            continue
+        rec[col] = val
+    return rec
+
+
 def iter_records(part_files: list[Path]) -> Iterator[dict[str, Any]]:
     """Records of a version from its parts, shaped the way the API returns them: null fields
     omitted, the ``_extra`` JSON column of an ``allowExtra`` schema folded back into the record."""
@@ -301,15 +316,6 @@ def iter_records(part_files: list[Path]) -> Iterator[dict[str, Any]]:
                 if not rows:
                     break
                 for row in rows:
-                    rec: dict[str, Any] = {}
-                    for col, val in zip(columns, row):
-                        if col == EXTRA_COLUMN:
-                            if val:
-                                rec.update(json.loads(val))
-                            continue
-                        if val is None:
-                            continue
-                        rec[col] = val
-                    yield rec
+                    yield record_from_row(columns, row)
     finally:
         con.close()
