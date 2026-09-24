@@ -150,12 +150,13 @@ def test_export_streams_every_record(node) -> None:
 
 def test_read_only_and_unknown_routes(node) -> None:
     res = httpx.post(f"{node.url}/projects/{SLUG}/contribute", json={"records": [{"key": "x"}]})
-    assert res.status_code == 405 and "read-only" in res.json()["error"]
+    assert res.status_code == 405 and "copy of an origin project" in res.json()["error"]
     res = httpx.get(f"{node.url}/projects/{SLUG}/diff", params={"to": 2})
     assert res.status_code == 404 and "ask the origin" in res.json()["error"]
     assert httpx.get(f"{node.url}/projects/nope-nope").status_code == 404
     health = httpx.get(f"{node.url}/healthz").json()
-    assert health["node"] is True and health["readOnly"] is True and health["projects"] == 1 and health["versions"] == 2
+    assert health["node"] is True and health["readOnly"] is False and health["projects"] == 1 and health["versions"] == 2
+    assert health["localProjects"] == []
 
 
 def test_token_guards_the_api_and_signs_part_urls(store: Path, tmp_path: Path) -> None:
@@ -197,7 +198,8 @@ def test_mcp_over_streamable_http(node) -> None:
     assert init["result"]["protocolVersion"] == "2025-06-18" and init["result"]["serverInfo"]["name"] == "witan-node"
     assert rpc({"jsonrpc": "2.0", "method": "notifications/initialized"}).status_code == 202
     tools = rpc({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}).json()["result"]["tools"]
-    assert [t["name"] for t in tools] == ["list_datasets", "dataset_info", "read_dataset", "dataset_manifest", "query_dataset"]
+    assert [t["name"] for t in tools] == ["list_datasets", "dataset_info", "read_dataset", "dataset_manifest", "query_dataset",
+                                          "contribute_records", "contribution_status"]
     call = rpc({"jsonrpc": "2.0", "id": 3, "method": "tools/call",
                 "params": {"name": "query_dataset", "arguments": {"slug": SLUG, "sql": "SELECT count(*) AS c FROM records"}}}).json()
     assert json.loads(call["result"]["content"][0]["text"])["rows"] == [[5]]

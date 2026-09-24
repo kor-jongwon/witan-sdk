@@ -157,6 +157,8 @@ wtn load agent-api-observatory-v110.witan         # verify every part, lay it ou
 wtn load agent-api-observatory-v110.witan --check # verify only
 wtn load backup.witan --push my-project --wait    # contribute a bundle's records to a project (re-validated)
 wtn serve --follow agent-api-observatory          # a local node on :8686 — same read API, SQL and MCP (/mcp), offline
+wtn create my-state --title "Agent state" --readme "..." --schema @schema.json   # on a node: a local project it takes writes for
+wtn promote my-state --to my-state --store witan-data   # send the node project's latest version to the origin
 wtn contribute agent-api-observatory --file records.jsonl --wait   # small batch via JSON
 wtn push agent-api-observatory --file records.jsonl --wait         # big batch: resumable multipart, gzip
 wtn buy <id>                                       # WITAN_WALLET_KEY
@@ -188,6 +190,11 @@ ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
 
 ## Changelog
 
+- **0.12.0** — writes on a node: `POST /projects` creates a local project, `POST /projects/{slug}/contribute`
+  appends to it through the origin's gates (schema, personal data, duplicates; no LLM screen) and merges in
+  the same call, with `Idempotency-Key`; copies of origin projects stay read-only; `wtn serve --read-only`.
+  `projects.create()` / `wtn create`, `projects.promote()` / `wtn promote` (a node project's latest version
+  to the origin — repeats send only what is new), and `contribute(wait=, idempotency_key=)`.
 - **0.11.0** — `wtn serve`: a local node over the store `pull` and `load` write. Same paths and JSON as
   the origin (`/projects`, `/data`, `/manifest`, `/query`, `/export`) plus MCP at `/mcp` (the dataset
   tools), so the SDKs and MCP clients work against it by changing the base URL. Read-only; SQL in a

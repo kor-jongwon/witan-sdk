@@ -71,11 +71,11 @@ class Witan:
 
     # ---- transport -------------------------------------------------------
     def _request(self, method: str, path: str, *, params: dict[str, Any] | None = None,
-                 json: Any = None, auth: bool = False) -> Any:
+                 json: Any = None, auth: bool = False, headers: dict[str, str] | None = None) -> Any:
         if auth and not self.api_key:
             raise AuthError("this call needs an agent API key (km_...): pass api_key= or set WITAN_API_KEY")
         clean = {k: v for k, v in (params or {}).items() if v is not None}
-        response = self._http.request(method, path, params=clean or None, json=json)
+        response = self._http.request(method, path, params=clean or None, json=json, headers=headers)
         if response.status_code >= 400:
             raise_for(response)
         if response.status_code == 204 or not response.content:
@@ -488,13 +488,30 @@ class Projects:
                                 params={"from": from_version, "to": to_version, "limit": limit})
 
     def contribute(self, slug: str, records: Iterable[dict[str, Any]], *,
-                   source_declaration: str | None = None) -> dict[str, Any]:
-        """Push a batch. Returns ``{id, status}``; gates run asynchronously — poll
-        ``contribution()`` or call ``wait_contribution()``."""
+                   source_declaration: str | None = None, wait: int | None = None,
+                   idempotency_key: str | None = None) -> dict[str, Any]:
+        """Push a batch (1-500 records). Returns ``{id, status}``; the gates run on the origin
+        after the call — poll ``contribution()``, call ``wait_contribution()``, or pass ``wait``
+        (seconds, up to 20) to get the final status (merged or rejected) in this call.
+        ``idempotency_key`` (a token unique to this write) makes a retried call return the
+        first contribution instead of writing twice. A node always answers with the final status."""
         payload: dict[str, Any] = {"records": list(records)}
         if source_declaration is not None:
             payload["sourceDeclaration"] = source_declaration
-        return self._c._request("POST", f"/projects/{slug}/contribute", json=payload, auth=True)
+        headers = {"idempotency-key": idempotency_key} if idempotency_key else None
+        return self._c._request("POST", f"/projects/{slug}/contribute", params={"wait": wait}, json=payload,
+                                auth=True, headers=headers)
+
+    def create(self, slug: str, title: str, readme: str, schema_def: dict[str, Any], *,
+               license: str | None = None, tags: list[str] | None = None, access: str | None = None,
+               visibility: str | None = None) -> dict[str, Any]:
+        """Create a dataset project. On the origin the client's key must be an operator token
+        (``wto_...``); on a node (``wtn serve``) this makes a local project the node takes
+        writes for (``visibility`` defaults to private there)."""
+        body = {k: v for k, v in {"slug": slug, "title": title, "readme": readme, "schemaDef": schema_def,
+                                  "license": license, "tags": tags, "access": access, "visibility": visibility}.items()
+                if v is not None}
+        return self._c._request("POST", "/projects", json=body, auth=True)
 
     def contribution(self, slug: str, contribution_id: str) -> dict[str, Any]:
         return self._c._request("GET", f"/projects/{slug}/contributions/{contribution_id}", auth=True)
@@ -729,6 +746,40 @@ class Projects:
                              f"operator token; the bundle's project.json has the schema contract)", status=404) from exc
         jsonl.unlink(missing_ok=True)
         return {**result, "bundle": {k: loaded[k] for k in ("project", "version", "records", "parts", "manifestSha256")}}
+
+    def promote(self, slug: str, *, to: str | None = None, store: "str | os.PathLike[str]" = "witan-data",
+                source_declaration: str | None = None, wait: bool = True, workers: int = 4,
+                timeout: float = 900.0) -> dict[str, Any]:
+        """Send a node-local project's latest version to a project on the origin this client
+        points at (``to``, the same slug by default; it must exist there).
+
+        The version is bundled offline from ``store`` and pushed like ``push_bundle``: the
+        records pass the origin's gates, and records already there are dropped as duplicates,
+        so promoting again sends only what is new (all-duplicate → rejected by the dedup
+        gate, meaning nothing new). Needs the ``query`` extra.
+        """
+        import tempfile
+        from pathlib import Path
+
+        from .node import Store
+
+        st = Store(Path(store))
+        if not st.is_local(slug):
+            raise WitanError(f"{slug} is not a local project in {store} — only projects created on a node are promoted")
+        versions = st.versions(slug)
+        if not versions:
+            raise WitanError(f"{slug} has no version in {store} yet")
+        v = versions[0]
+        target = to or slug
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = Path(tmp) / f"{slug}-v{v}.witan"
+            saved = self.save(slug, bundle, version=v, cache_dir=store)
+            declaration = source_declaration or (
+                f"Promoted from a WITAN node: local project {slug} v{v} ({saved['records']} records)."
+            )
+            result = self.push_bundle(bundle, target, source_declaration=declaration, out_dir=Path(tmp) / "load",
+                                      wait=wait, workers=workers, timeout=timeout)
+        return {**result, "promoted": {"from": slug, "version": v, "to": target, "records": saved["records"]}}
 
     def comments(self, slug: str) -> list[dict[str, Any]]:
         return self._c._request("GET", f"/projects/{slug}/comments")["comments"]

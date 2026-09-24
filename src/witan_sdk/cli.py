@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+from pathlib import Path
 import os
 import re
 import sys
@@ -314,15 +315,56 @@ def cmd_serve(w: Witan, a: argparse.Namespace) -> None:
     from .node import Server
 
     srv = Server(a.store, host=a.host, port=a.port, token=a.token or None, follow=a.follow, interval=a.interval,
-                 origin=w if a.follow else None, quiet=a.quiet)
+                 origin=w if a.follow else None, quiet=a.quiet, read_only=a.read_only)
     h = srv.node.health()
+    mode = "read-only" if a.read_only else f"writes to local projects ({len(h['localProjects'])})"
     print(f"witan node on {srv.url} · store {a.store}: {h['projects']} projects, {h['versions']} versions · "
-          f"read-only (writes go to the origin){' · token required' if a.token else ''}", file=sys.stderr)
+          f"{mode}{' · token required' if a.token else ''}", file=sys.stderr)
     print(f"MCP: {srv.url}/mcp · stop with Ctrl-C", file=sys.stderr)
     if a.follow:
         print(f"following {', '.join(a.follow)} from {w.base_url} every {a.interval:g}s", file=sys.stderr)
     sys.stderr.flush()
     srv.serve_forever()
+
+
+def cmd_create(w: Witan, a: argparse.Namespace) -> None:
+    raw = a.schema
+    if raw.startswith("@"):
+        raw = Path(raw[1:]).read_text(encoding="utf-8")
+    try:
+        schema = json.loads(raw)
+    except ValueError as exc:
+        raise WitanError(f"--schema is not JSON: {exc}") from exc
+    readme = Path(a.readme_file).read_text(encoding="utf-8") if a.readme_file else a.readme
+    if not readme:
+        raise WitanError("give the project a README: --readme TEXT or --readme-file FILE")
+    r = w.projects.create(a.slug, a.title, readme, schema, license=a.license, tags=a.tags or None,
+                          visibility=a.visibility)
+    _emit(r, a.json, lambda r: print(f"created {r['slug']} ({r.get('visibility', 'public')}"
+                                     f"{', local to this node' if r.get('local') else ''}) on {w.base_url}"))
+
+
+def cmd_promote(w: Witan, a: argparse.Namespace) -> None:
+    r = w.projects.promote(a.slug, to=a.to, store=a.store, source_declaration=a.source, wait=not a.no_wait,
+                           workers=a.workers)
+
+    def human(r: dict[str, Any]) -> None:
+        p = r["promoted"]
+        st = r.get("status", "submitted")
+        verdict = r.get("verdict") or {}
+        if st == "merged":
+            print(f"promoted {p['from']} v{p['version']} → {p['to']} v{r.get('mergedVersion')} on {w.base_url} · "
+                  f"accepted {r.get('acceptedCount')}/{p['records']} (the rest were already there)")
+        elif st == "rejected" and verdict.get("gate") == "dedup":
+            print(f"up to date: every record of {p['from']} v{p['version']} is already in {p['to']} on {w.base_url}")
+        elif st == "rejected":
+            print(f"rejected by {p['to']} ({verdict.get('gate', '?')}): {verdict.get('reason', '')}")
+        else:
+            print(f"uploaded · contribution {r.get('contributionId')} is {st}; the gates run on the origin")
+
+    _emit(r, a.json, human)
+    if r.get("status") == "rejected" and (r.get("verdict") or {}).get("gate") != "dedup":
+        raise WitanError(f"the origin rejected the promoted records ({(r.get('verdict') or {}).get('gate')})")
 
 
 def _size(n: int) -> str:
@@ -472,7 +514,28 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--follow", nargs="*", default=[], metavar="SLUG", help="keep these projects current: pull their latest version from the origin")
     s.add_argument("--interval", type=float, default=600, help="seconds between follow syncs (default: 600)")
     s.add_argument("--quiet", action="store_true", help="no request log")
+    s.add_argument("--read-only", action="store_true", help="refuse every write (local projects too)")
     s.set_defaults(fn=cmd_serve)
+
+    s = common(sub.add_parser("create", help="create a dataset project: on the origin (key = operator token wto_...) or a local project on a node"))
+    s.add_argument("slug")
+    s.add_argument("--title", required=True)
+    s.add_argument("--readme", help="README text (or --readme-file)")
+    s.add_argument("--readme-file", help="README from a file")
+    s.add_argument("--schema", required=True, help='the record contract as JSON, or @file.json: {"fields":[{"name":"key","type":"string"}],"allowExtra":false}')
+    s.add_argument("--license")
+    s.add_argument("--tags", nargs="*")
+    s.add_argument("--visibility", choices=["public", "private"])
+    s.set_defaults(fn=cmd_create)
+
+    s = common(sub.add_parser("promote", help="send a node-local project's latest version to a project on the origin (its gates run; what is already there is skipped)"))
+    s.add_argument("slug", help="the local project on the node's store")
+    s.add_argument("--to", help="the project on the origin (default: the same slug; it must exist)")
+    s.add_argument("--store", default="witan-data", help="the node's store (default: ./witan-data)")
+    s.add_argument("--source", help="source declaration (default: names the node project and version)")
+    s.add_argument("--no-wait", action="store_true", help="return once uploaded, do not wait for the merge")
+    s.add_argument("--workers", type=int, default=4, help="parallel part uploads")
+    s.set_defaults(fn=cmd_promote)
 
     s = common(sub.add_parser("buy", help="buy a unit with USDC over x402 (WITAN_WALLET_KEY)"))
     s.add_argument("id")
