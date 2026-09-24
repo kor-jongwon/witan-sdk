@@ -12,11 +12,17 @@ against it by changing the base URL:
     POST /projects/{slug}/query           SQL over the version as the table `records`
     GET  /projects/{slug}/export          every record of a version as jsonl.gz
     GET  /parts/{slug}/{sha256}.parquet   a part (signed URL when the node has a token)
+    POST /projects                        create a local project (same body as the origin)
+    POST /projects/{slug}/contribute      append records to a local project; the answer is final
+    GET  /projects/{slug}/contributions/{id}
     POST /mcp                             MCP (Streamable HTTP, JSON responses): the dataset tools
     GET  /healthz                         liveness, store summary, follow status
 
-It is read-only: writes go to the origin. ``follow`` keeps chosen projects current by
-pulling their latest version from the origin on an interval. SQL runs in DuckDB with file
+Copies of origin projects (pulled, loaded, followed) are read-only; projects created on the
+node itself (``POST /projects``) take writes at ``POST /projects/{slug}/contribute`` with the
+origin's gates and merge inside the request (see ``node_write``). ``--read-only`` turns
+writes off. ``follow`` keeps chosen projects current by pulling their latest version from
+the origin on an interval. SQL runs in DuckDB with file
 access limited to the project's parts directory. Bound to loopback by default; any other
 address requires a token.
 """
@@ -42,6 +48,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from .bundle import PROJECT_KEYS, SLUG_RE, published_manifest, record_from_row
 from .errors import WitanError
+from .node_write import WriteError, Writer
 
 MAX_DATA_PAGE = 1000
 QUERY_MAX_ROWS = 1000
@@ -108,6 +115,17 @@ class Store:
     def __init__(self, root: Path) -> None:
         self.root = root
 
+    def _project_json(self, slug: str) -> dict[str, Any]:
+        try:
+            p = json.loads((self.root / slug / "project.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+        return p if isinstance(p, dict) else {}
+
+    def is_local(self, slug: str) -> bool:
+        """Created on this node (writable here), as opposed to a copy of an origin project."""
+        return SLUG_RE.match(slug) is not None and bool(self._project_json(slug).get("local"))
+
     def _local(self, slug: str, version: int) -> dict[str, Any] | None:
         path = self.root / slug / f"v{version}" / "manifest.json"
         try:
@@ -145,7 +163,8 @@ class Store:
             entries = sorted(self.root.iterdir())
         except OSError:
             return []
-        return [e.name for e in entries if e.is_dir() and SLUG_RE.match(e.name) and self.versions(e.name)]
+        return [e.name for e in entries
+                if e.is_dir() and SLUG_RE.match(e.name) and (self.versions(e.name) or self.is_local(e.name))]
 
     def manifest(self, slug: str, version: int | None = None) -> dict[str, Any]:
         if not SLUG_RE.match(slug):
@@ -156,7 +175,7 @@ class Store:
                 return m
         versions = self.versions(slug)
         if not versions:
-            raise NodeError(404, "project not found on this node")
+            raise NodeError(404, "no published version yet" if self.is_local(slug) else "project not found on this node")
         if version is not None:
             raise NodeError(404, f"version {version} is not on this node (local versions: {', '.join(map(str, versions[:10]))})")
         m = self._local(slug, versions[0])
@@ -164,22 +183,23 @@ class Store:
         return m
 
     def project(self, slug: str) -> dict[str, Any]:
-        latest = self.manifest(slug)
-        try:
-            p = json.loads((self.root / slug / "project.json").read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            p = {}
-        schema = latest.get("schema") or {}
+        p = self._project_json(slug)
+        schema_def = p.get("schemaDef")
+        if not p or not schema_def:  # a pulled copy without project.json: the manifest carries the schema
+            s = self.manifest(slug).get("schema") or {}
+            schema_def = schema_def or {"fields": s.get("fields", []), "allowExtra": bool(s.get("allowExtra"))}
         return {
             "slug": slug,
             "title": p.get("title") or slug,
             "readme": p.get("readme") or "",
-            "schemaDef": p.get("schemaDef") or {"fields": schema.get("fields", []), "allowExtra": bool(schema.get("allowExtra"))},
+            "schemaDef": schema_def,
             "license": p.get("license") or "unknown",
             "tags": p.get("tags") or [],
             "access": p.get("access") or "public",
             "visibility": p.get("visibility") or "public",
             "maintainer": p.get("maintainer"),
+            "local": bool(p.get("local")),
+            "createdAt": p.get("createdAt"),
         }
 
     def parts_dir(self, slug: str) -> Path:
@@ -193,8 +213,11 @@ class Node:
     """The state one ``wtn serve`` process answers from."""
 
     def __init__(self, store: Store, *, token: str | None = None, query_timeout: float = 20.0,
-                 max_queries: int = 2, quiet: bool = False) -> None:
+                 max_queries: int = 2, quiet: bool = False, read_only: bool = False,
+                 follow_slugs: Iterable[str] = ()) -> None:
         self.store = store
+        self.read_only = read_only
+        self.writer = Writer(store.root, set(follow_slugs))
         self.token = token or None
         self.query_timeout = query_timeout
         self.queries = threading.BoundedSemaphore(max(1, max_queries))
@@ -219,26 +242,30 @@ class Node:
         out = []
         for slug in self.store.slugs():
             p = self.store.project(slug)
-            m = self.store.manifest(slug)
+            versions = self.store.versions(slug)
+            m = self.store.manifest(slug) if versions else {}
             totals = m.get("totals", {})
             out.append({
                 "slug": slug, "title": p["title"], "status": "open", "license": p["license"],
-                "access": p["access"], "visibility": p["visibility"], "createdAt": m.get("createdAt"),
+                "access": p["access"], "visibility": p["visibility"], "createdAt": p["createdAt"] or m.get("createdAt"),
                 "stars": 0, "contributions": int(totals.get("contributions", 0) or 0),
-                "records": int(totals.get("records", 0) or 0), "latestVersion": int(m["version"]),
-                "localVersions": len(self.store.versions(slug)),
+                "records": int(totals.get("records", 0) or 0), "latestVersion": int(m.get("version", 0)),
+                "localVersions": len(versions), "local": p["local"],
             })
         return out
 
     def detail(self, slug: str) -> dict[str, Any]:
+        if not (self.store.versions(slug) or self.store.is_local(slug)):
+            raise NodeError(404, "project not found on this node")
         p = self.store.project(slug)
         versions = self.store.versions(slug)
         shown = []
         for v in versions[:10]:
             m = self.store.manifest(slug, v)
             shown.append({"version": v, "manifest": published_manifest(m), "createdAt": m.get("createdAt")})
-        return {"id": None, **p, "status": "open", "createdAt": shown[-1]["createdAt"] if shown else None,
-                "stars": 0, "latestVersion": versions[0], "localVersions": versions, "contributors": [], "versions": shown}
+        return {"id": None, **p, "status": "open", "createdAt": p["createdAt"] or (shown[-1]["createdAt"] if shown else None),
+                "stars": 0, "latestVersion": versions[0] if versions else 0, "localVersions": versions,
+                "contributors": [], "versions": shown}
 
     def data(self, slug: str, version: int | None, limit: int, offset: int) -> dict[str, Any]:
         m = self.store.manifest(slug, version)
@@ -331,9 +358,35 @@ class Node:
 
     def health(self) -> dict[str, Any]:
         slugs = self.store.slugs()
-        return {"ok": True, "node": True, "readOnly": True, "store": str(self.store.root), "since": self.started,
+        return {"ok": True, "node": True, "readOnly": self.read_only, "store": str(self.store.root), "since": self.started,
                 "projects": len(slugs), "versions": sum(len(self.store.versions(s)) for s in slugs),
+                "localProjects": [s for s in slugs if self.store.is_local(s)],
                 "auth": "token" if self.token else "none", "follow": self.follow}
+
+    # ---- writes (local projects only) ----
+    def create_project(self, body: Any) -> dict[str, Any]:
+        if self.read_only:
+            raise NodeError(405, "this node is read-only (--read-only)")
+        try:
+            return self.writer.create(body)
+        except WriteError as exc:
+            raise NodeError(exc.status, exc.message) from exc
+
+    def contribute(self, slug: str, body: Any, idem: str | None) -> tuple[int, dict[str, Any], bool]:
+        if self.read_only:
+            raise NodeError(405, "this node is read-only (--read-only)")
+        if not (self.store.is_local(slug) or self.store.versions(slug)):
+            raise NodeError(404, "project not found on this node")
+        try:
+            return self.writer.contribute(slug, body, idem)
+        except WriteError as exc:
+            raise NodeError(exc.status, exc.message) from exc
+
+    def contribution(self, slug: str, cid: str) -> dict[str, Any]:
+        try:
+            return self.writer.contribution(slug, cid)
+        except WriteError as exc:
+            raise NodeError(exc.status, exc.message) from exc
 
     # ---- MCP (Streamable HTTP; every POST answered with JSON) ----
     def mcp_tools(self) -> list[dict[str, Any]]:
@@ -352,7 +405,17 @@ class Node:
             {"name": "query_dataset", "description": "Run SQL over a local dataset version: the version's Parquet parts are the table `records` (extra fields of an allowExtra schema are the JSON column `_extra`). Read-only sandbox, one statement, up to 1000 rows (`truncated` says if more matched). DESCRIBE records shows the columns.",
              "inputSchema": {"type": "object", "properties": {"slug": slug, "sql": {"type": "string", "minLength": 1, "maxLength": 4000},
                              "version": version, "limit": {"type": "integer", "minimum": 1, "maximum": 1000}}, "required": ["slug", "sql"]}},
-        ]
+        ] + ([] if self.read_only else [
+            {"name": "contribute_records", "description": "Append a batch of records (1-500 JSON objects matching the schema) to a local project on this node — one created here, not a copy of an origin project. The node runs the schema, personal-data and duplicate gates and merges in the same call: the answer is merged (mergedVersion, acceptedCount) or rejected (verdict names the gate and the reason). Pass idempotencyKey (a token unique to this write) so a retried call replays the first answer instead of writing twice.",
+             "inputSchema": {"type": "object", "properties": {"slug": slug,
+                             "records": {"type": "array", "minItems": 1, "maxItems": 500, "items": {"type": "object"}},
+                             "sourceDeclaration": {"type": "string", "maxLength": 500, "description": "where the records come from"},
+                             "idempotencyKey": {"type": "string", "minLength": 1, "maxLength": 200},
+                             "wait": {"type": "integer", "minimum": 0, "maximum": 20, "description": "accepted for parity with the origin; a node always answers with the final status"}},
+                             "required": ["slug", "records"]}},
+            {"name": "contribution_status", "description": "A contribution on this node: merged (mergedVersion, acceptedCount) or rejected (verdict).",
+             "inputSchema": {"type": "object", "properties": {"slug": slug, "id": {"type": "string", "format": "uuid"}}, "required": ["slug", "id"]}},
+        ])
 
     def mcp_call(self, name: str, args: dict[str, Any], base: str) -> Any:
         def slug() -> str:
@@ -384,6 +447,16 @@ class Node:
             if not isinstance(sql, str) or not sql.strip() or len(sql) > 4000:
                 raise NodeError(400, "sql must be a statement of 1-4000 characters")
             return self.query(slug(), sql, opt_int("version", 1, None, None), opt_int("limit", 1, QUERY_MAX_ROWS, 200) or 200)
+        if name == "contribute_records" and not self.read_only:
+            body: dict[str, Any] = {"records": args.get("records")}
+            if args.get("sourceDeclaration") is not None:
+                body["sourceDeclaration"] = args["sourceDeclaration"]
+            key = args.get("idempotencyKey")
+            _, view, replayed = self.contribute(slug(), body, key if isinstance(key, str) else None)
+            return {**view, "replayed": replayed}
+        if name == "contribution_status" and not self.read_only:
+            cid = args.get("id")
+            return self.contribution(slug(), cid if isinstance(cid, str) else "")
         raise NodeError(404, f"unknown tool: {name}")
 
     def mcp(self, message: Any, base: str) -> dict[str, Any] | None:
@@ -545,13 +618,25 @@ class _Handler(BaseHTTPRequestHandler):
             return self._send_json(202, {}) if reply is None else self._send_json(200, reply)
         if path == "/projects" and method == "GET":
             return self._send_json(200, {"projects": node.list_projects()})
+        if path == "/projects" and method == "POST":
+            return self._send_json(201, node.create_project(self._body()))
         if len(seg) >= 2 and seg[0] == "projects":
             slug = seg[1]
             if not SLUG_RE.match(slug):
                 raise NodeError(404, "project not found on this node")
             rest = "/".join(seg[2:])
+            if method == "POST" and rest == "contribute":
+                self._int(q, "wait", 0, 0, 20)  # accepted for parity with the origin; the answer is always final
+                header = self.headers.get("idempotency-key")
+                status, view, replayed = node.contribute(slug, self._body(), header.strip() if header is not None else None)
+                return self._send_json(status, view, {"idempotent-replayed": "true"} if replayed else None)
+            if method == "GET" and len(seg) == 4 and seg[2] == "contributions":
+                self._int(q, "wait", 0, 0, 20)
+                return self._send_json(200, node.contribution(slug, seg[3]))
+            if rest.startswith("uploads"):
+                raise NodeError(405, "a node takes JSON batches of up to 500 records at /contribute; multipart uploads go to the origin")
             if method != "GET" and not (method == "POST" and rest == "query"):
-                raise NodeError(405, "this node is read-only — write to the origin (wtn push / contribute)")
+                raise NodeError(405, "not writable on a node — write to the origin")
             if rest == "":
                 return self._send_json(200, node.detail(slug))
             if rest == "data":
@@ -682,7 +767,7 @@ class Server:
 
     def __init__(self, store_dir: "str | os.PathLike[str]", *, host: str = "127.0.0.1", port: int = 8686,
                  token: str | None = None, follow: Iterable[str] = (), interval: float = 600.0,
-                 origin: Any = None, query_timeout: float = 20.0, quiet: bool = False) -> None:
+                 origin: Any = None, query_timeout: float = 20.0, quiet: bool = False, read_only: bool = False) -> None:
         if not _loopback(host) and not token:
             raise WitanError(f"binding {host} exposes the store beyond this machine — set a token (--token or WITAN_NODE_TOKEN)")
         slugs = list(follow)
@@ -694,7 +779,11 @@ class Server:
         _duckdb()
         root = Path(store_dir)
         root.mkdir(parents=True, exist_ok=True)
-        self.node = Node(Store(root), token=token, query_timeout=query_timeout, quiet=quiet)
+        store = Store(root)
+        local = [s for s in slugs if store.is_local(s)]
+        if local:
+            raise WitanError(f"{local[0]} is a local project on this node — there is no origin version to follow")
+        self.node = Node(store, token=token, query_timeout=query_timeout, quiet=quiet, read_only=read_only, follow_slugs=slugs)
         handler = type("NodeHandler", (_Handler,), {})
         self.httpd = ThreadingHTTPServer((host, port), handler)
         self.httpd.daemon_threads = True
