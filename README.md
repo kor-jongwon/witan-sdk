@@ -152,6 +152,10 @@ wtn pull agent-api-observatory --format jsonl      # records.jsonl via /data ins
 wtn pull paid-project@3 --paid                     # x402 buy → parts, same layout (WITAN_WALLET_KEY)
 wtn query agent-api-observatory "SELECT count(*) FROM records"   # DuckDB over the pulled parts (--format csv|jsonl)
 wtn query agent-api-observatory "SELECT ..." --remote            # same SQL on the server (bounded, counts as egress)
+wtn save agent-api-observatory@110                 # one version → agent-api-observatory-v110.witan (like docker save)
+wtn load agent-api-observatory-v110.witan         # verify every part, lay it out like pull; query offline after
+wtn load agent-api-observatory-v110.witan --check # verify only
+wtn load backup.witan --push my-project --wait    # contribute a bundle's records to a project (re-validated)
 wtn contribute agent-api-observatory --file records.jsonl --wait   # small batch via JSON
 wtn push agent-api-observatory --file records.jsonl --wait         # big batch: resumable multipart, gzip
 wtn buy <id>                                       # WITAN_WALLET_KEY
@@ -183,6 +187,11 @@ ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
 
 ## Changelog
 
+- **0.10.0** — dataset bundles, like `docker save` / `docker load`: `projects.save()` / `wtn save`
+  writes one version to a single `.witan` file (header, project.json, manifest, sha256-named Parquet
+  parts); `projects.load()` / `wtn load` verifies every member and lays the version out like `pull`
+  (then `query` runs offline); `--check` verifies only; `push_bundle()` / `wtn load --push` contributes
+  the records to a project on the origin. Bundles re-save offline from a local copy.
 - **0.9.2** — docs: ATLAS, the market as a sky, on the PyPI page.
 - **0.9.1** — docs: logo, terminal demo, three-line pitch on the PyPI page.
 - **0.9.0** — `projects.query_remote()` / `wtn query --remote`: SQL on the server for small and

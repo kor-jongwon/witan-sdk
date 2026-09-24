@@ -607,6 +607,129 @@ class Projects:
             result.update(self.wait_contribution(slug, done["contributionId"], timeout=timeout))
         return result
 
+    # ---- bundles: one version as one file, like docker save / load ---------
+
+    def save(self, slug: str, path: "str | os.PathLike[str] | None" = None, *, version: int | None = None,
+             paid: bool = False, private_key: str | None = None,
+             cache_dir: "str | os.PathLike[str]" = "witan-data", workers: int = 4) -> dict[str, Any]:
+        """Write one version of a project to a single bundle file (``<slug>-v<N>.witan`` by default).
+
+        The parts come from ``pull`` (or ``pull_paid`` with ``paid=True``) — incremental and
+        sha256-verified — so they also stay in ``cache_dir``. A version already complete in
+        ``cache_dir`` together with its ``project.json`` (a pulled-and-saved or a loaded one)
+        is bundled without any request: bundles can be re-made offline. Returns the bundle
+        header plus ``path`` and ``offline``.
+        """
+        import json as _json
+        from pathlib import Path
+
+        from . import __version__
+        from .bundle import PROJECT_KEYS, write_bundle
+
+        root = Path(cache_dir) / slug
+        project_file = root / "project.json"
+        m = self._cached(root, version) if version is not None else None
+        offline = m is not None and project_file.is_file()
+        if offline:
+            project = _json.loads(project_file.read_text(encoding="utf-8"))
+        else:
+            if paid:
+                m = self.pull_paid(slug, cache_dir, version=version, private_key=private_key, workers=workers)
+            else:
+                m = self.pull(slug, cache_dir, version=version, workers=workers)
+            if m.get("format") != "parquet":
+                raise WitanError(f"{slug} v{m.get('version')} is not available as Parquet parts, so it cannot be bundled")
+            detail = self.get(slug)
+            project = {k: detail[k] for k in PROJECT_KEYS if k in detail}
+            root.mkdir(parents=True, exist_ok=True)
+            project_file.write_text(_json.dumps(project, indent=2, ensure_ascii=False), encoding="utf-8")
+        assert m is not None
+        target = Path(path) if path is not None else Path(f"{slug}-v{int(m['version'])}.witan")
+        header = write_bundle(target, project, m, root / "parts", source=m.get("source") or self._c.base_url,
+                              sdk_version=__version__)
+        return {**header, "path": str(target), "offline": offline}
+
+    def load(self, path: "str | os.PathLike[str]", out_dir: "str | os.PathLike[str]" = "witan-data", *,
+             check: bool = False) -> dict[str, Any]:
+        """Verify a bundle and lay its version out in ``out_dir`` exactly like ``pull`` does.
+
+        Every member is checked before anything is kept (member names, manifest sha256,
+        each part's sha256 and size, totals); a damaged or altered bundle raises
+        ``WitanError`` and leaves nothing behind. Afterwards ``query(slug, sql,
+        version=N, out_dir=out_dir)`` runs on it with no network. ``check=True`` verifies
+        only and writes nothing. Returns the bundle header plus ``out``, ``written`` (new
+        parts) and ``checked``.
+        """
+        import json as _json
+        from pathlib import Path
+
+        from .bundle import BundleError, local_manifest, peek_header, read_bundle
+
+        src = Path(path)
+        if check:
+            b = read_bundle(src, None)
+            return {**b["header"], "out": None, "written": 0, "checked": True}
+        slug = peek_header(src)["project"]  # where the parts go; everything is verified before they are kept
+        root = Path(out_dir) / slug
+        b = read_bundle(src, root / "parts")
+        if b["header"]["project"] != slug:
+            raise BundleError("the bundle header changed while it was read")
+        vdir = root / f"v{int(b['header']['version'])}"
+        vdir.mkdir(parents=True, exist_ok=True)
+        (vdir / "manifest.json").write_text(
+            _json.dumps(local_manifest(b["manifest"], b["header"], src.name, b["written"]), indent=2), encoding="utf-8")
+        (root / "project.json").write_text(_json.dumps(b["project"], indent=2, ensure_ascii=False), encoding="utf-8")
+        return {**b["header"], "out": str(root), "written": b["written"], "checked": True}
+
+    def push_bundle(self, path: "str | os.PathLike[str]", slug: str, *, source_declaration: str | None = None,
+                    out_dir: "str | os.PathLike[str]" = "witan-data", allow_paid: bool = False, wait: bool = True,
+                    workers: int = 4, timeout: float = 900.0) -> dict[str, Any]:
+        """Contribute a bundle's records to project ``slug`` on this origin (it must exist).
+
+        The bundle is verified and loaded into ``out_dir`` first; its records are then read
+        back from the parts (the ``query`` extra — DuckDB) and uploaded with ``push``, so
+        they pass the target's gates like any batch: schema, personal data, duplicates (a
+        bundle pushed where its records already are is rejected as all duplicates). A bundle
+        of a paid project is refused unless ``allow_paid=True`` — republishing bought data
+        needs the maintainer's rights. Returns the contribution (merged or rejected when
+        ``wait``).
+        """
+        import json as _json
+        import os as _os
+        from pathlib import Path
+
+        from .bundle import iter_records, peek_header
+        from .errors import NotFoundError
+
+        head = peek_header(Path(path))
+        if head.get("access") == "paid" and not allow_paid:
+            raise WitanError(f"{Path(path).name} is a bundle of a paid project (license {head.get('license')}); "
+                             "republishing it needs the maintainer's rights — pass allow_paid=True (--allow-paid) if you hold them")
+        loaded = self.load(path, out_dir)
+        root = Path(out_dir) / loaded["project"]
+        manifest = _json.loads((root / f"v{loaded['version']}" / "manifest.json").read_text(encoding="utf-8"))
+        files = [root / "parts" / f"{p['sha256']}.parquet" for p in manifest["parts"]]
+        src = Path(path)
+        jsonl = src.with_name(src.name + ".records.jsonl")
+        # an interrupted push resumes from the same records file (push keeps its progress next to it)
+        if not (jsonl.is_file() and jsonl.stat().st_mtime >= src.stat().st_mtime):
+            tmp = jsonl.with_name(jsonl.name + ".tmp")
+            with tmp.open("w", encoding="utf-8") as fh:
+                for rec in iter_records(files):
+                    fh.write(_json.dumps(rec, ensure_ascii=False) + "\n")
+            _os.replace(tmp, jsonl)
+        declaration = source_declaration or (
+            f"Imported from bundle {src.name}: {loaded['project']} v{loaded['version']} ({loaded['records']} records), "
+            f"saved {loaded.get('savedAt')} from {loaded.get('source')}; original license {loaded.get('license')}."
+        )[:500]
+        try:
+            result = self.push(slug, jsonl, source_declaration=declaration, workers=workers, wait=wait, timeout=timeout)
+        except NotFoundError as exc:
+            raise WitanError(f"project {slug} not found on {self._c.base_url} — create it first (POST /projects with your "
+                             f"operator token; the bundle's project.json has the schema contract)", status=404) from exc
+        jsonl.unlink(missing_ok=True)
+        return {**result, "bundle": {k: loaded[k] for k in ("project", "version", "records", "parts", "manifestSha256")}}
+
     def comments(self, slug: str) -> list[dict[str, Any]]:
         return self._c._request("GET", f"/projects/{slug}/comments")["comments"]
 
