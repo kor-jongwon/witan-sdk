@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import re
 import sys
 from typing import Any, Sequence
@@ -309,6 +310,21 @@ def cmd_load(w: Witan, a: argparse.Namespace) -> None:
     _emit(r, a.json, human)
 
 
+def cmd_serve(w: Witan, a: argparse.Namespace) -> None:
+    from .node import Server
+
+    srv = Server(a.store, host=a.host, port=a.port, token=a.token or None, follow=a.follow, interval=a.interval,
+                 origin=w if a.follow else None, quiet=a.quiet)
+    h = srv.node.health()
+    print(f"witan node on {srv.url} · store {a.store}: {h['projects']} projects, {h['versions']} versions · "
+          f"read-only (writes go to the origin){' · token required' if a.token else ''}", file=sys.stderr)
+    print(f"MCP: {srv.url}/mcp · stop with Ctrl-C", file=sys.stderr)
+    if a.follow:
+        print(f"following {', '.join(a.follow)} from {w.base_url} every {a.interval:g}s", file=sys.stderr)
+    sys.stderr.flush()
+    srv.serve_forever()
+
+
 def _size(n: int) -> str:
     for unit, div in (("GiB", 1024 ** 3), ("MiB", 1024 ** 2), ("KiB", 1024)):
         if n >= div:
@@ -447,6 +463,16 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--no-wait", action="store_true", help="with --push: return once uploaded, do not wait for the merge")
     s.add_argument("--workers", type=int, default=4, help="parallel part uploads for --push")
     s.set_defaults(fn=cmd_load)
+
+    s = common(sub.add_parser("serve", help="run a local node: the origin's read API, SQL and MCP over your local store (read-only)"))
+    s.add_argument("--store", default="witan-data", help="the store pull and load write (default: ./witan-data)")
+    s.add_argument("--host", default="127.0.0.1", help="address to bind (default: 127.0.0.1; any other needs --token)")
+    s.add_argument("--port", type=int, default=8686)
+    s.add_argument("--token", default=os.environ.get("WITAN_NODE_TOKEN"), help="require Authorization: Bearer <token> (default: WITAN_NODE_TOKEN)")
+    s.add_argument("--follow", nargs="*", default=[], metavar="SLUG", help="keep these projects current: pull their latest version from the origin")
+    s.add_argument("--interval", type=float, default=600, help="seconds between follow syncs (default: 600)")
+    s.add_argument("--quiet", action="store_true", help="no request log")
+    s.set_defaults(fn=cmd_serve)
 
     s = common(sub.add_parser("buy", help="buy a unit with USDC over x402 (WITAN_WALLET_KEY)"))
     s.add_argument("id")

@@ -156,6 +156,7 @@ wtn save agent-api-observatory@110                 # one version → agent-api-o
 wtn load agent-api-observatory-v110.witan         # verify every part, lay it out like pull; query offline after
 wtn load agent-api-observatory-v110.witan --check # verify only
 wtn load backup.witan --push my-project --wait    # contribute a bundle's records to a project (re-validated)
+wtn serve --follow agent-api-observatory          # a local node on :8686 — same read API, SQL and MCP (/mcp), offline
 wtn contribute agent-api-observatory --file records.jsonl --wait   # small batch via JSON
 wtn push agent-api-observatory --file records.jsonl --wait         # big batch: resumable multipart, gzip
 wtn buy <id>                                       # WITAN_WALLET_KEY
@@ -187,6 +188,11 @@ ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
 
 ## Changelog
 
+- **0.11.0** — `wtn serve`: a local node over the store `pull` and `load` write. Same paths and JSON as
+  the origin (`/projects`, `/data`, `/manifest`, `/query`, `/export`) plus MCP at `/mcp` (the dataset
+  tools), so the SDKs and MCP clients work against it by changing the base URL. Read-only; SQL in a
+  DuckDB sandbox limited to the project's parts; `--follow <slug>` keeps projects current from the
+  origin; loopback by default, any other address needs `--token` (part URLs are then signed).
 - **0.10.0** — dataset bundles, like `docker save` / `docker load`: `projects.save()` / `wtn save`
   writes one version to a single `.witan` file (header, project.json, manifest, sha256-named Parquet
   parts); `projects.load()` / `wtn load` verifies every member and lays the version out like `pull`
