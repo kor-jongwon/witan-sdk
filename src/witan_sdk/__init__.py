@@ -9,6 +9,7 @@
 """
 
 from .client import Witan
+from .trust import SignatureError
 from .errors import (
     AuthError,
     ConflictError,
@@ -21,11 +22,12 @@ from .errors import (
     WitanError,
 )
 
-__version__ = "0.12.0"
+__version__ = "0.13.0"
 
 __all__ = [
     "Witan",
     "WitanError",
+    "SignatureError",
     "AuthError",
     "ConflictError",
     "NotFoundError",

@@ -23,7 +23,7 @@ import json
 import re
 import tarfile
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Callable, Iterator
 
 from .errors import WitanError
 
@@ -36,7 +36,7 @@ PART_RE = re.compile(r"^parts/([0-9a-f]{64})\.parquet$")
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$")  # the header's slug becomes a directory name
 PROJECT_KEYS = ("slug", "title", "readme", "schemaDef", "license", "tags", "access", "visibility", "maintainer")
 # Keys a local manifest carries about this machine (pull/load bookkeeping), not about the version.
-LOCAL_KEYS = ("count", "file", "downloaded", "loaded", "pulledAt", "loadedAt", "loadedFrom", "source")
+LOCAL_KEYS = ("count", "file", "downloaded", "loaded", "pulledAt", "loadedAt", "loadedFrom", "source", "verified")
 EXTRA_COLUMN = "_extra"
 _CHUNK = 1024 * 1024
 
@@ -148,13 +148,15 @@ def peek_header(path: Path) -> dict[str, Any]:
     return _check_header(header)
 
 
-def read_bundle(path: Path, parts_dir: Path | None = None) -> dict[str, Any]:
+def read_bundle(path: Path, parts_dir: Path | None = None, *,
+                accept: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
     """Verify a bundle and, when ``parts_dir`` is given, place its parts there.
 
     Parts stream to ``<sha>.parquet.part`` while their hash is computed and are renamed
     only after the whole bundle verified; on any failure the temporaries are removed and
     nothing new is left behind. A part already on disk with the right size is kept (its
-    bytes in the bundle are still hashed). Returns ``{header, project, manifest, written}``.
+    bytes in the bundle are still hashed). ``accept`` sees the verified manifest last, before
+    anything is kept, and refuses the bundle by raising. Returns ``{header, project, manifest, written}``.
     """
     if not path.is_file():
         raise BundleError(f"no such file: {path}")
@@ -254,6 +256,8 @@ def read_bundle(path: Path, parts_dir: Path | None = None) -> dict[str, Any]:
         records = sum(int(p["records"]) for p in manifest["parts"])
         if int(totals.get("records", records)) != records:
             raise BundleError(f"manifest totals say {totals.get('records')} records, its parts hold {records}")
+        if accept is not None:
+            accept(manifest)
 
         for tmp, target in staged:
             tmp.replace(target)
