@@ -189,17 +189,19 @@ def cmd_data(w: Witan, a: argparse.Namespace) -> None:
 def cmd_pull(w: Witan, a: argparse.Namespace) -> None:
     slug, _, ver = a.target.partition("@")
     version = int(ver) if ver else a.version
+    verify = True if a.verify else None
     if a.paid:
-        m = w.projects.pull_paid(slug, a.out, version=version, workers=a.workers)
+        m = w.projects.pull_paid(slug, a.out, version=version, workers=a.workers, verify=verify)
     else:
-        m = w.projects.pull(slug, a.out, version=version, format=a.format, page=a.page, workers=a.workers)
+        m = w.projects.pull(slug, a.out, version=version, format=a.format, page=a.page, workers=a.workers, verify=verify)
 
     def human(m: dict[str, Any]) -> None:
         if m.get("format") == "parquet":
             n = len(m["parts"])
             got = m.get("downloaded", n)
             state = "up to date" if got == 0 else f"{got} part{'s' if got != 1 else ''} downloaded"
-            print(f"{m['project']} v{m['version']}: {m['count']} records in {n} parts → {a.out}/{m['project']}/parts/ ({state})")
+            print(f"{m['project']} v{m['version']}: {m['count']} records in {n} parts → {a.out}/{m['project']}/parts/ ({state})"
+                  f"{_signed(m)}")
         else:
             print(f"{m['project']} v{m['version']}: {m['count']} records → {a.out}/{m['project']}/v{m['version']}/{m['file']}")
 
@@ -297,15 +299,16 @@ def cmd_load(w: Witan, a: argparse.Namespace) -> None:
         if r.get("status") == "rejected":
             raise WitanError(f"the bundle's records were rejected by {a.push}")
         return
-    r = w.projects.load(a.file, a.out, check=a.check)
+    r = w.projects.load(a.file, a.out, check=a.check, verify=True if a.verify else None)
 
     def human(r: dict[str, Any]) -> None:
         head = f"{r['project']} v{r['version']}: {r['records']} records in {r['parts']} part{'s' if r['parts'] != 1 else ''} " \
                f"({_size(r['bytes'])}), saved {r.get('savedAt')} from {r.get('source')}"
         if r["out"] is None:
-            print(f"ok · {head} · every part sha256-verified")
+            print(f"ok · {head} · every part sha256-verified{_signed({'verified': r.get('signature'), 'signature': {'origin': r.get('signedBy')}})}")
         else:
-            print(f"{head} → {r['out']} ({r['written']} new part{'s' if r['written'] != 1 else ''})")
+            print(f"{head} → {r['out']} ({r['written']} new part{'s' if r['written'] != 1 else ''})"
+                  f"{_signed({'verified': r.get('signature'), 'signature': {'origin': r.get('signedBy')}})}")
             print(f'query it offline: wtn query {r["project"]}@{r["version"]} "SELECT count(*) FROM records" --out {a.out}')
 
     _emit(r, a.json, human)
@@ -314,15 +317,21 @@ def cmd_load(w: Witan, a: argparse.Namespace) -> None:
 def cmd_serve(w: Witan, a: argparse.Namespace) -> None:
     from .node import Server
 
+    source = w
+    if a.upstream:  # follow from another node (a mirror) instead of the origin; signatures still come from the origin
+        # never the origin's key: a mirror is someone else's server
+        source = Witan(api_key=a.upstream_token or "node", base_url=a.upstream)
     srv = Server(a.store, host=a.host, port=a.port, token=a.token or None, follow=a.follow, interval=a.interval,
-                 origin=w if a.follow else None, quiet=a.quiet, read_only=a.read_only)
+                 origin=source if a.follow else None, quiet=a.quiet, read_only=a.read_only,
+                 verify=True if a.verify else None)
     h = srv.node.health()
     mode = "read-only" if a.read_only else f"writes to local projects ({len(h['localProjects'])})"
     print(f"witan node on {srv.url} · store {a.store}: {h['projects']} projects, {h['versions']} versions · "
           f"{mode}{' · token required' if a.token else ''}", file=sys.stderr)
     print(f"MCP: {srv.url}/mcp · stop with Ctrl-C", file=sys.stderr)
     if a.follow:
-        print(f"following {', '.join(a.follow)} from {w.base_url} every {a.interval:g}s", file=sys.stderr)
+        print(f"following {', '.join(a.follow)} from {source.base_url} every {a.interval:g}s"
+              f"{' · signatures required' if a.verify else ''}", file=sys.stderr)
     sys.stderr.flush()
     srv.serve_forever()
 
@@ -365,6 +374,47 @@ def cmd_promote(w: Witan, a: argparse.Namespace) -> None:
     _emit(r, a.json, human)
     if r.get("status") == "rejected" and (r.get("verdict") or {}).get("gate") != "dedup":
         raise WitanError(f"the origin rejected the promoted records ({(r.get('verdict') or {}).get('gate')})")
+
+
+def _signed(m: dict[str, Any]) -> str:
+    status = m.get("verified")
+    origin = (m.get("signature") or {}).get("origin")
+    if status == "verified":
+        return f" · signed by {origin} ✓"
+    if status == "untrusted":
+        return f" · signed by {origin} (not trusted here: wtn trust add)"
+    if status == "unsigned":
+        return " · unsigned"
+    return ""
+
+
+def cmd_trust(w: Witan, a: argparse.Namespace) -> None:
+    if a.action == "add":
+        r = w.trust()
+
+        def human_add(r: dict[str, Any]) -> None:
+            print(f"trusting {r['origin']} · keys {', '.join(r['keys'])}"
+                  f"{' (new: ' + ', '.join(r['added']) + ')' if r['added'] else ' (already pinned)'} · {r['file']}")
+            if r["origin"] != r["from"]:  # trust on first use: the server at WITAN_BASE_URL spoke for that origin
+                print(f"note: these keys were fetched from {r['from']}, which says it is {r['origin']} — "
+                      "pin only if you trust it to speak for that origin", file=sys.stderr)
+
+        _emit(r, a.json, human_add)
+    elif a.action == "remove":
+        if not a.origin:
+            raise WitanError("wtn trust remove <origin>")
+        _emit({"removed": w.untrust(a.origin)}, a.json,
+              lambda r: print(f"{'removed' if r['removed'] else 'not trusted'}: {a.origin}"))
+    else:
+        t = w.trusted()
+
+        def human(t: dict[str, Any]) -> None:
+            if not t:
+                print("no trusted origins — pin one with: wtn trust add (uses WITAN_BASE_URL)")
+            for origin, keys in t.items():
+                print(f"{origin}  {', '.join(k['kid'] for k in keys)}")
+
+        _emit(t, a.json, human)
 
 
 def _size(n: int) -> str:
@@ -457,6 +507,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--workers", type=int, default=4, help="parallel part downloads")
     s.add_argument("--page", type=int, default=200, help="rows per request in jsonl mode")
     s.add_argument("--paid", action="store_true", help="buy the version over x402 first (WITAN_WALLET_KEY), then download its parts")
+    s.add_argument("--verify", action="store_true", help="require a manifest signed by a trusted origin (see wtn trust)")
     s.set_defaults(fn=cmd_pull)
 
     s = common(sub.add_parser("query", help="run SQL over a dataset version locally with DuckDB (pulls the parts first; the table is `records`)"))
@@ -504,6 +555,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--allow-paid", action="store_true", help="allow --push of a paid project's bundle (you hold the rights)")
     s.add_argument("--no-wait", action="store_true", help="with --push: return once uploaded, do not wait for the merge")
     s.add_argument("--workers", type=int, default=4, help="parallel part uploads for --push")
+    s.add_argument("--verify", action="store_true", help="require the bundle's manifest to be signed by a trusted origin")
     s.set_defaults(fn=cmd_load)
 
     s = common(sub.add_parser("serve", help="run a local node: the origin's read API, SQL and MCP over your local store (read-only)"))
@@ -515,7 +567,15 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--interval", type=float, default=600, help="seconds between follow syncs (default: 600)")
     s.add_argument("--quiet", action="store_true", help="no request log")
     s.add_argument("--read-only", action="store_true", help="refuse every write (local projects too)")
+    s.add_argument("--verify", action="store_true", help="--follow accepts only versions signed by a trusted origin")
+    s.add_argument("--upstream", help="follow from this node (a mirror) instead of the origin; signatures still verify against the origin's key")
+    s.add_argument("--upstream-token", help="the upstream node's token, if it has one")
     s.set_defaults(fn=cmd_serve)
+
+    s = common(sub.add_parser("trust", help="pin the signing keys of the origin at WITAN_BASE_URL (add), list them, or remove an origin"))
+    s.add_argument("action", nargs="?", choices=["add", "list", "remove"], default="list")
+    s.add_argument("origin", nargs="?", help="for remove: the origin, as wtn trust list shows it")
+    s.set_defaults(fn=cmd_trust)
 
     s = common(sub.add_parser("create", help="create a dataset project: on the origin (key = operator token wto_...) or a local project on a node"))
     s.add_argument("slug")

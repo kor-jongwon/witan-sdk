@@ -717,10 +717,11 @@ class Follower(threading.Thread):
     """Keeps chosen projects current: pull the latest version from the origin every ``interval`` seconds."""
 
     def __init__(self, node: Node, origin: Any, slugs: list[str], interval: float,
-                 log: Callable[[str], None] | None = None) -> None:
+                 log: Callable[[str], None] | None = None, verify: bool | None = None) -> None:
         super().__init__(name="witan-follow", daemon=True)
         self.node = node
         self.origin = origin
+        self.verify = verify
         self.slugs = slugs
         self.interval = max(1.0, float(interval))
         self.stop = threading.Event()
@@ -733,14 +734,15 @@ class Follower(threading.Thread):
         for slug in self.slugs:
             status = self.node.follow[slug]
             try:
-                m = self.origin.projects.pull(slug, root)
+                m = self.origin.projects.pull(slug, root, verify=self.verify)  # a bad signature keeps the old version
                 if m.get("format") != "parquet":
                     raise WitanError(f"v{m.get('version')} is not available as Parquet parts")
                 detail = self.origin.projects.get(slug)
                 project = {k: detail[k] for k in PROJECT_KEYS if k in detail}
                 (root / slug / "project.json").write_text(json.dumps(project, indent=2, ensure_ascii=False), encoding="utf-8")
                 changed = status["version"] != m["version"]
-                status.update({"version": int(m["version"]), "at": _now_iso(), "error": None})
+                status.update({"version": int(m["version"]), "at": _now_iso(), "error": None,
+                               "signature": m.get("verified"), "from": self.origin.base_url})
                 if changed:
                     self.log(f"[follow] {slug} v{m['version']} ({m.get('downloaded', 0)} new parts)")
             except Exception as exc:  # noqa: BLE001 - keep following the others
@@ -767,7 +769,8 @@ class Server:
 
     def __init__(self, store_dir: "str | os.PathLike[str]", *, host: str = "127.0.0.1", port: int = 8686,
                  token: str | None = None, follow: Iterable[str] = (), interval: float = 600.0,
-                 origin: Any = None, query_timeout: float = 20.0, quiet: bool = False, read_only: bool = False) -> None:
+                 origin: Any = None, query_timeout: float = 20.0, quiet: bool = False, read_only: bool = False,
+                 verify: bool | None = None) -> None:
         if not _loopback(host) and not token:
             raise WitanError(f"binding {host} exposes the store beyond this machine — set a token (--token or WITAN_NODE_TOKEN)")
         slugs = list(follow)
@@ -788,7 +791,8 @@ class Server:
         self.httpd = ThreadingHTTPServer((host, port), handler)
         self.httpd.daemon_threads = True
         self.httpd.node = self.node  # type: ignore[attr-defined]
-        self.follower = Follower(self.node, origin, slugs, interval, log=None if not quiet else (lambda s: None)) if slugs else None
+        self.follower = (Follower(self.node, origin, slugs, interval, log=None if not quiet else (lambda s: None), verify=verify)
+                         if slugs else None)
         self._thread: threading.Thread | None = None
         self._serving = False  # shutdown() waits for serve_forever, so only call it once serving began
 

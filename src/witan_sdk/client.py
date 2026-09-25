@@ -115,6 +115,30 @@ class Witan:
             if tmp.exists():
                 tmp.unlink()
 
+    # ---- trust: the origins whose manifest signatures this machine accepts --
+
+    def trust(self) -> dict[str, Any]:
+        """Pin the signing keys of the origin this client points at (trust on first use).
+
+        From then on every manifest that origin signed verifies wherever it comes from — the
+        origin, a node, a mirror of a mirror, a bundle. Keys are kept in the trust file (see
+        ``witan_sdk.trust``). Returns ``{origin, keys, added, file}``."""
+        from .trust import add
+
+        data = self._request("GET", "/.well-known/witan-keys")
+        return {**add(data["origin"], data["keys"]), "from": self.base_url}
+
+    def trusted(self) -> dict[str, Any]:
+        """origin → pinned keys, from the trust file."""
+        from .trust import trusted
+
+        return trusted()
+
+    def untrust(self, origin: str) -> bool:
+        from .trust import remove
+
+        return remove(origin)
+
     # ---- knowledge: discover -------------------------------------------
     def search(self, q: str, *, category: str | None = None, mode: str = "keyword",
                limit: int | None = None) -> list[dict[str, Any]]:
@@ -294,7 +318,7 @@ class Projects:
 
     def pull(self, slug: str, out_dir: "str | os.PathLike[str]" = "witan-data", *,
              version: int | None = None, format: str = "parquet", page: int = 200,
-             workers: int = 4) -> dict[str, Any]:
+             workers: int = 4, verify: bool | None = None) -> dict[str, Any]:
         """Download one version to disk and return its local manifest.
 
         ``format="parquet"`` (default) fetches the version's parts straight from the object
@@ -304,6 +328,11 @@ class Projects:
         download is sha256-verified. ``format="jsonl"`` pages through ``/data`` instead and
         writes ``v<N>/records.jsonl`` — no object-store access, what 0.1.x did. Versions
         the server has not materialized as parts yet fall back to jsonl automatically.
+
+        Signatures: a manifest signed by a trusted origin is checked before any part is fetched
+        (a mismatch raises ``SignatureError`` and nothing is written); the result is kept as
+        ``verified`` in the local manifest. ``verify=True`` (or ``WITAN_VERIFY=1``) also refuses
+        unsigned manifests and origins not trusted yet — see ``Witan.trust``.
         """
         if format == "jsonl":
             return self._pull_jsonl(slug, out_dir, version=version, page=page)
@@ -312,21 +341,25 @@ class Projects:
         from pathlib import Path
 
         from .errors import ConflictError
+        from .trust import check
 
         root = Path(out_dir) / slug
         if version is not None:
             cached = self._cached(root, version)
             if cached is not None:
+                if verify or (verify is None and cached.get("signature")):
+                    cached["verified"] = check(cached, require=verify)["status"]  # offline: the signature is on disk
                 return cached
         try:
             remote = self.manifest(slug, version=version)
         except ConflictError:
             return self._pull_jsonl(slug, out_dir, version=version, page=page)
-        return self._materialize(slug, root, remote, workers)
+        status = check(remote, require=verify)["status"]
+        return self._materialize(slug, root, remote, workers, verified=status)
 
     def pull_paid(self, slug: str, out_dir: "str | os.PathLike[str]" = "witan-data", *,
                   version: int | None = None, private_key: str | None = None,
-                  workers: int = 4) -> dict[str, Any]:
+                  workers: int = 4, verify: bool | None = None) -> dict[str, Any]:
         """Buy one version of a paid project over x402 and lay it out like ``pull``.
 
         The paid answer is the version manifest with 15-minute part URLs; the parts are
@@ -337,13 +370,18 @@ class Projects:
         """
         from pathlib import Path
 
+        from .trust import check
+
         root = Path(out_dir) / slug
         if version is not None:
             cached = self._cached(root, version)
             if cached is not None:
+                if verify or (verify is None and cached.get("signature")):
+                    cached["verified"] = check(cached, require=verify)["status"]
                 return cached
         remote = self._c.buy_dataset(slug, version=version, private_key=private_key)
-        return self._materialize(slug, root, remote, workers)
+        status = check(remote, require=verify)["status"]
+        return self._materialize(slug, root, remote, workers, verified=status)
 
     def _cached(self, root: Any, version: int) -> dict[str, Any] | None:
         """The local manifest of ``version`` when every part it lists is on disk."""
@@ -360,7 +398,8 @@ class Projects:
             return m
         return None
 
-    def _materialize(self, slug: str, root: Any, remote: dict[str, Any], workers: int) -> dict[str, Any]:
+    def _materialize(self, slug: str, root: Any, remote: dict[str, Any], workers: int,
+                     verified: str | None = None) -> dict[str, Any]:
         """Download the parts a presigned manifest lists (skipping those already on
         disk) and write the version's local manifest."""
         import datetime as _dt
@@ -385,6 +424,8 @@ class Projects:
             "pulledAt": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
             "source": self._c.base_url,
         })
+        if verified is not None:
+            local_manifest["verified"] = verified
         (vdir / "manifest.json").write_text(_json.dumps(local_manifest, indent=2), encoding="utf-8")
         return local_manifest
 
@@ -667,7 +708,7 @@ class Projects:
         return {**header, "path": str(target), "offline": offline}
 
     def load(self, path: "str | os.PathLike[str]", out_dir: "str | os.PathLike[str]" = "witan-data", *,
-             check: bool = False) -> dict[str, Any]:
+             check: bool = False, verify: bool | None = None) -> dict[str, Any]:
         """Verify a bundle and lay its version out in ``out_dir`` exactly like ``pull`` does.
 
         Every member is checked before anything is kept (member names, manifest sha256,
@@ -681,22 +722,31 @@ class Projects:
         from pathlib import Path
 
         from .bundle import BundleError, local_manifest, peek_header, read_bundle
+        from .trust import check as check_signature
 
         src = Path(path)
+        signed: dict[str, Any] = {}
+
+        def accept(manifest: dict[str, Any]) -> None:  # a bad signature refuses the bundle before any part is kept
+            signed.update(check_signature(manifest, require=verify))
+
         if check:
-            b = read_bundle(src, None)
-            return {**b["header"], "out": None, "written": 0, "checked": True}
+            b = read_bundle(src, None, accept=accept)
+            return {**b["header"], "out": None, "written": 0, "checked": True, "signature": signed["status"],
+                    "signedBy": signed["origin"]}
         slug = peek_header(src)["project"]  # where the parts go; everything is verified before they are kept
         root = Path(out_dir) / slug
-        b = read_bundle(src, root / "parts")
+        b = read_bundle(src, root / "parts", accept=accept)
         if b["header"]["project"] != slug:
             raise BundleError("the bundle header changed while it was read")
         vdir = root / f"v{int(b['header']['version'])}"
         vdir.mkdir(parents=True, exist_ok=True)
-        (vdir / "manifest.json").write_text(
-            _json.dumps(local_manifest(b["manifest"], b["header"], src.name, b["written"]), indent=2), encoding="utf-8")
+        kept = local_manifest(b["manifest"], b["header"], src.name, b["written"])
+        kept["verified"] = signed["status"]
+        (vdir / "manifest.json").write_text(_json.dumps(kept, indent=2), encoding="utf-8")
         (root / "project.json").write_text(_json.dumps(b["project"], indent=2, ensure_ascii=False), encoding="utf-8")
-        return {**b["header"], "out": str(root), "written": b["written"], "checked": True}
+        return {**b["header"], "out": str(root), "written": b["written"], "checked": True,
+                "signature": signed["status"], "signedBy": signed["origin"]}
 
     def push_bundle(self, path: "str | os.PathLike[str]", slug: str, *, source_declaration: str | None = None,
                     out_dir: "str | os.PathLike[str]" = "witan-data", allow_paid: bool = False, wait: bool = True,

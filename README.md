@@ -159,6 +159,9 @@ wtn load backup.witan --push my-project --wait    # contribute a bundle's record
 wtn serve --follow agent-api-observatory          # a local node on :8686 — same read API, SQL and MCP (/mcp), offline
 wtn create my-state --title "Agent state" --readme "..." --schema @schema.json   # on a node: a local project it takes writes for
 wtn promote my-state --to my-state --store witan-data   # send the node project's latest version to the origin
+wtn trust add                                     # pin the signing key of the origin at WITAN_BASE_URL
+wtn pull agent-api-observatory --verify           # refuse anything not signed by a trusted origin (or WITAN_VERIFY=1)
+wtn serve --follow agent-api-observatory --upstream http://mirror:8686 --verify   # follow a mirror; trust only the origin
 wtn contribute agent-api-observatory --file records.jsonl --wait   # small batch via JSON
 wtn push agent-api-observatory --file records.jsonl --wait         # big batch: resumable multipart, gzip
 wtn buy <id>                                       # WITAN_WALLET_KEY
@@ -190,6 +193,11 @@ ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
 
 ## Changelog
 
+- **0.13.0** — signed manifests: the origin signs every version manifest (Ed25519, key at
+  `/.well-known/witan-keys`); `Witan.trust()` / `wtn trust add` pins an origin's key; `pull`, `pull_paid`,
+  `load` and a node's `--follow` verify against it before keeping anything (`verify=True` / `--verify` /
+  `WITAN_VERIFY=1` to require it). Nodes pass signatures through, so `wtn serve --upstream <node>` follows a
+  mirror while trusting only the origin. Pure-Python Ed25519 verification; no new dependency.
 - **0.12.0** — writes on a node: `POST /projects` creates a local project, `POST /projects/{slug}/contribute`
   appends to it through the origin's gates (schema, personal data, duplicates; no LLM screen) and merges in
   the same call, with `Idempotency-Key`; copies of origin projects stay read-only; `wtn serve --read-only`.
