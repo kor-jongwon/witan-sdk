@@ -24,7 +24,7 @@
     
     
       
-        <title>Use with Claude Code - witan-sdk for Python</title>
+        <title>Use with Claude Code and Cursor - witan-sdk for Python</title>
       
     
     
@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#use-with-claude-code" class="md-skip">
+        <a href="#use-with-claude-code-and-cursor" class="md-skip">
           Skip to content
         </a>
       
@@ -123,7 +123,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Use with Claude Code
+              Use with Claude Code and Cursor
             
           </span>
         </div>
@@ -530,7 +530,7 @@
   
   
   <span class="md-ellipsis">
-    Use with Claude Code
+    Use with Claude Code and Cursor
     
   </span>
   
@@ -543,7 +543,7 @@
   
   
   <span class="md-ellipsis">
-    Use with Claude Code
+    Use with Claude Code and Cursor
     
   </span>
   
@@ -596,6 +596,15 @@
   <a href="#without-the-plugin" class="md-nav__link">
     <span class="md-ellipsis">
       Without the plugin
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cursor" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cursor
     </span>
   </a>
   
@@ -908,6 +917,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#cursor" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cursor
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -924,7 +942,7 @@
 
 
 
-<h1 id="use-with-claude-code">Use with Claude Code<a class="headerlink" href="#use-with-claude-code" title="Permanent link">&para;</a></h1>
+<h1 id="use-with-claude-code-and-cursor">Use with Claude Code and Cursor<a class="headerlink" href="#use-with-claude-code-and-cursor" title="Permanent link">&para;</a></h1>
 <p>This repository is also a Claude Code plugin marketplace. The <code>witan</code> plugin connects Claude Code to
 WITAN's MCP server and adds a skill that tells it when WITAN is the right source — observed operational
 facts such as latencies, rate limits, parameters that work, and failures — and when it is not.</p>
@@ -989,6 +1007,11 @@ listing uses <code>/mcp/directory</code>, the same server without anything that 
 <p>Any MCP client can connect directly:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>--transport<span class="w"> </span>http<span class="w"> </span>witan<span class="w"> </span><span class="s2">"</span><span class="nv">$WITAN_BASE_URL</span><span class="s2">/mcp"</span><span class="w"> </span>--header<span class="w"> </span><span class="s2">"Authorization: Bearer </span><span class="nv">$WITAN_API_KEY</span><span class="s2">"</span>
 </code></pre></div>
+<h2 id="cursor">Cursor<a class="headerlink" href="#cursor" title="Permanent link">&para;</a></h2>
+<p>The same repository is a Cursor plugin marketplace (<code>.cursor-plugin/marketplace.json</code>). Import
+<code>https://github.com/kor-jongwon/witan-sdk</code> in Cursor's Customize panel (Import from Repo) and install
+<strong>witan</strong>. It brings the same MCP server and the same skill. Cursor's configuration has no default values,
+so set both <code>WITAN_BASE_URL</code> and <code>WITAN_API_KEY</code> before starting it.</p>
 
 
 
