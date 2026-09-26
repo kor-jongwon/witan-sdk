@@ -159,7 +159,7 @@ wtn load backup.witan --push my-project --wait    # contribute a bundle's record
 wtn serve --follow agent-api-observatory          # a local node on :8686 — same read API, SQL and MCP (/mcp), offline
 wtn create my-state --title "Agent state" --readme "..." --schema @schema.json   # on a node: a local project it takes writes for
 wtn promote my-state --to my-state --store witan-data   # send the node project's latest version to the origin
-wtn trust add                                     # pin the signing key of the origin at WITAN_BASE_URL
+wtn trust add                                     # pin the signing key of the origin at WITAN_BASE_URL (again after a rotation)
 wtn pull agent-api-observatory --verify           # refuse anything not signed by a trusted origin (or WITAN_VERIFY=1)
 wtn serve --follow agent-api-observatory --upstream http://mirror:8686 --verify   # follow a mirror; trust only the origin
 wtn contribute agent-api-observatory --file records.jsonl --wait   # small batch via JSON
@@ -193,6 +193,10 @@ ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
 
 ## Changelog
 
+- **0.14.0** — key rotation: when the origin re-keys, its old key endorses the new one and the endorsement
+  travels in every manifest signature, so `pull`, `load` and `--follow` verify the new key against the pinned
+  one and pin it themselves (offline too). `wtn trust add` against an origin already pinned adds only
+  endorsed keys and drops keys it revoked; `--force` re-pins by hand. `wtn trust list` says how each key was pinned.
 - **0.13.0** — signed manifests: the origin signs every version manifest (Ed25519, key at
   `/.well-known/witan-keys`); `Witan.trust()` / `wtn trust add` pins an origin's key; `pull`, `pull_paid`,
   `load` and a node's `--follow` verify against it before keeping anything (`verify=True` / `--verify` /

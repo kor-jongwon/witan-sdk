@@ -117,16 +117,19 @@ class Witan:
 
     # ---- trust: the origins whose manifest signatures this machine accepts --
 
-    def trust(self) -> dict[str, Any]:
+    def trust(self, *, force: bool = False) -> dict[str, Any]:
         """Pin the signing keys of the origin this client points at (trust on first use).
 
         From then on every manifest that origin signed verifies wherever it comes from — the
         origin, a node, a mirror of a mirror, a bundle. Keys are kept in the trust file (see
-        ``witan_sdk.trust``). Returns ``{origin, keys, added, file}``."""
-        from .trust import add
+        ``witan_sdk.trust``). Run again after the origin rotated its key: new keys are added only
+        when a pinned key endorsed them (``refused`` otherwise — ``force=True`` re-pins by hand,
+        after checking the key id with the operator), and keys it revoked stop counting.
+        Returns ``{origin, keys, added, refused, revoked, file, from}``."""
+        from .trust import refresh
 
         data = self._request("GET", "/.well-known/witan-keys")
-        return {**add(data["origin"], data["keys"]), "from": self.base_url}
+        return {**refresh(data, force=force), "from": self.base_url}
 
     def trusted(self) -> dict[str, Any]:
         """origin → pinned keys, from the trust file."""

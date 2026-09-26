@@ -135,7 +135,7 @@ def test_trust_refuses_keys_it_cannot_use() -> None:
 def test_check_reports_unsigned_and_untrusted_and_require_refuses_both(monkeypatch: pytest.MonkeyPatch) -> None:
     m = manifest_for(110)
     assert trust.check(m)["status"] == "unsigned"
-    assert trust.check(signed(m)) == {"status": "untrusted", "origin": ORIGIN, "kid": kid(SEED)}
+    assert trust.check(signed(m)) == {"status": "untrusted", "origin": ORIGIN, "kid": kid(SEED), "learned": []}
     for bad in (m, signed(m)):
         with pytest.raises(SignatureError):
             trust.check(bad, require=True)
@@ -148,7 +148,7 @@ def test_check_reports_unsigned_and_untrusted_and_require_refuses_both(monkeypat
 def test_check_verifies_pinned_origins_and_refuses_any_change() -> None:
     trust.add(ORIGIN, keys_doc()["keys"])
     m = signed(manifest_for(110))
-    assert trust.check(m, require=True) == {"status": "verified", "origin": ORIGIN, "kid": kid(SEED)}
+    assert trust.check(m, require=True) == {"status": "verified", "origin": ORIGIN, "kid": kid(SEED), "learned": []}
     fresh = {**m, "urlExpiresAt": "2030-01-01T00:00:00Z", "parts": [{**p, "url": "http://elsewhere/p"} for p in m["parts"]]}
     assert trust.check(fresh)["status"] == "verified"  # URLs and expiry are per request, not signed
     changes = [
@@ -304,3 +304,126 @@ def test_unsigned_bundles_load_unless_verify_is_asked(w: Witan, fake: SignedFake
     assert w.projects.load(path, tmp_path / "out")["signature"] == "unsigned"
     with pytest.raises(SignatureError):
         w.projects.load(path, tmp_path / "out2", verify=True)
+
+
+# ---- key rotation ---------------------------------------------------------------------------
+
+K0, K1, K2, K3 = (bytes([i]) * 32 for i in (10, 11, 12, 13))
+
+
+def key_of(seed: bytes) -> dict:
+    return {"kid": kid(seed), "alg": "Ed25519", "publicKey": base64.b64encode(public(seed)).decode()}
+
+
+def link(by: bytes, seed: bytes, origin: str = ORIGIN) -> dict:
+    """``by`` endorses ``seed``'s key, as the origin's signing-rotate does."""
+    k = key_of(seed)
+    return {**k, "by": kid(by), "sig": base64.b64encode(sign(by, trust.endorsement_statement(origin, k))).decode()}
+
+
+def signed_chain(manifest: dict, seed: bytes, chain: list) -> dict:
+    m = signed(manifest, seed=seed)
+    return {**m, "signature": {**m["signature"], "chain": chain}}
+
+
+def pinned_kids() -> list:
+    return [k["kid"] for k in trust.trusted().get(ORIGIN, []) if not k.get("revoked")]
+
+
+def test_the_endorsement_statement_is_the_origins() -> None:
+    assert trust.endorsement_statement("https://o", {"kid": "k", "publicKey": "P"}) == (
+        b'{"key":{"alg":"Ed25519","kid":"k","publicKey":"P"},"origin":"https://o","type":"witan-key-endorsement","v":1}')
+
+
+def test_a_rotation_is_followed_through_the_chain_and_pinned() -> None:
+    trust.add(ORIGIN, [key_of(K0)])
+    m = signed_chain(manifest_for(110), K2, [link(K0, K1), link(K1, K2)])
+    r = trust.check(m, require=True)
+    assert r == {"status": "verified", "origin": ORIGIN, "kid": kid(K2), "learned": [kid(K1), kid(K2)]}
+    entries = {k["kid"]: k for k in trust.trusted()[ORIGIN]}
+    assert entries[kid(K1)]["endorsedBy"] == kid(K0) and entries[kid(K2)]["endorsedBy"] == kid(K1)
+    assert trust.check(signed(manifest_for(110), seed=K2))["learned"] == []  # pinned now: no chain needed
+
+
+def test_chain_order_does_not_matter() -> None:
+    trust.add(ORIGIN, [key_of(K0)])
+    m = signed_chain(manifest_for(110), K2, [link(K1, K2), link(K0, K1)])
+    assert trust.check(m)["status"] == "verified"
+
+
+def test_a_chain_that_no_pinned_key_starts_is_refused() -> None:
+    trust.add(ORIGIN, [key_of(K0)])
+    with pytest.raises(SignatureError, match="no endorsement leads"):
+        trust.check(signed_chain(manifest_for(110), K2, [link(K3, K2)]))
+    with pytest.raises(SignatureError, match="no endorsement leads"):
+        trust.check(signed(manifest_for(110), seed=K2))  # re-keyed without any chain
+    assert pinned_kids() == [kid(K0)]
+
+
+def test_altered_links_are_refused() -> None:
+    trust.add(ORIGIN, [key_of(K0)])
+    forged = {**link(K0, K1), "sig": link(K3, K1)["sig"]}  # claims K0, signed by someone else
+    with pytest.raises(SignatureError, match="does not verify"):
+        trust.check(signed_chain(manifest_for(110), K1, [forged]))
+    swapped = {**link(K0, K1), "publicKey": key_of(K2)["publicKey"]}  # the key does not match its id
+    with pytest.raises(SignatureError, match="malformed"):
+        trust.check(signed_chain(manifest_for(110), K1, [swapped]))
+    other_origin = link(K0, K1, origin="https://elsewhere.test")  # an endorsement is bound to its origin
+    with pytest.raises(SignatureError, match="does not verify"):
+        trust.check(signed_chain(manifest_for(110), K1, [other_origin]))
+    assert pinned_kids() == [kid(K0)]
+
+
+def test_nothing_is_pinned_when_the_manifest_itself_fails() -> None:
+    trust.add(ORIGIN, [key_of(K0)])
+    m = signed_chain(manifest_for(110), K1, [link(K0, K1)])
+    with pytest.raises(SignatureError, match="does not match"):
+        trust.check({**m, "totals": {**m["totals"], "records": 99}})
+    assert pinned_kids() == [kid(K0)]
+
+
+def keys_published(current: bytes, retired=(), revoked=(), endorsements=()) -> dict:
+    keys = [{**key_of(current), "status": "current"}]
+    keys += [{**key_of(s), "status": "retired"} for s in retired]
+    keys += [{**key_of(s), "status": "revoked"} for s in revoked]
+    return {"origin": ORIGIN, "keys": keys,
+            "endorsements": [{"kid": l["kid"], "by": l["by"], "sig": l["sig"]} for l in endorsements]}
+
+
+def test_refresh_pins_on_first_contact_then_only_what_pinned_keys_endorse() -> None:
+    r = trust.refresh(keys_published(K0))
+    assert r["added"] == [kid(K0)] and r["refused"] == []
+    r = trust.refresh(keys_published(K2, retired=[K0, K1], endorsements=[link(K0, K1), link(K1, K2)]))
+    assert sorted(r["added"]) == sorted([kid(K1), kid(K2)]) and r["refused"] == []
+    r = trust.refresh(keys_published(K3, retired=[K2]))  # re-keyed with no endorsement
+    assert r["added"] == [] and r["refused"] == [kid(K3)]
+    assert kid(K3) not in pinned_kids()
+    r = trust.refresh(keys_published(K3, retired=[K2]), force=True)
+    assert r["added"] == [kid(K3)]
+    assert {k["kid"]: k for k in trust.trusted()[ORIGIN]}[kid(K3)]["forced"] is True
+
+
+def test_a_revoked_key_stops_counting_and_so_does_what_it_vouched_for() -> None:
+    trust.add(ORIGIN, [key_of(K0), key_of(K1)])
+    r = trust.refresh(keys_published(K2, revoked=[K1]))
+    assert r["revoked"] == [kid(K1)] and r["refused"] == [kid(K2)]
+    with pytest.raises(SignatureError, match="revoked"):
+        trust.check(signed(manifest_for(110), seed=K1))
+    with pytest.raises(SignatureError, match="no endorsement leads"):
+        trust.check(signed_chain(manifest_for(110), K2, [link(K1, K2)]))
+    assert trust.check(signed(manifest_for(110), seed=K0))["status"] == "verified"
+
+
+def test_the_client_refreshes_and_forces(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    served = {"doc": keys_published(K0)}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=served["doc"])
+
+    w = Witan("km_test", base_url="http://api.test", transport=httpx.MockTransport(handler))
+    assert w.trust()["added"] == [kid(K0)]
+    served["doc"] = keys_published(K1, retired=[K0], endorsements=[link(K0, K1)])
+    assert w.trust()["added"] == [kid(K1)]
+    served["doc"] = keys_published(K2, retired=[K1])
+    assert w.trust()["refused"] == [kid(K2)]
+    assert w.trust(force=True)["added"] == [kid(K2)]
