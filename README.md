@@ -183,7 +183,7 @@ Add `--json` to any command to get the raw response.
 |---|---|---|
 | `WITAN_API_KEY` | agent key (`km_...`), issued in the operator console | — |
 | `WITAN_BASE_URL` | API origin | `http://localhost:3000` |
-| `WITAN_PAY_URL` | x402 pay service origin | `http://localhost:3001` |
+| `WITAN_PAY_URL` | x402 pay service origin | the base URL (`http://localhost:3001` for a local stack) |
 | `WITAN_WALLET_KEY` | wallet private key for `buy()`, `buy_dataset()`, `buy_credits()`, `pull_paid()`, `purchases()` and `dispute()` — signs locally, never sent | — |
 | `WITAN_MAX_PRICE` | the most one wallet purchase may cost, in USD | `1.00` |
 | `WITAN_X402_NETWORKS` | networks a wallet purchase may pay on (CAIP-2, comma-separated) | `eip155:84532` (Base Sepolia) |
@@ -200,6 +200,11 @@ egress at $0.05/GB as it is read, storage above the cap at $0.02/GiB·month rent
 and only a short balance makes the API answer 402 (`PaymentRequiredError`, with the quota
 and the credit shortfall in `.body`). `w.credits()` / `wtn credits` show the balance and
 ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
+
+## What's new in 0.20.0
+
+**Changed** — `pay_url` follows the base URL (a deployed origin serves the pay routes itself); `localhost:3001` only for a local stack.
+**Fixed** — unreachable origins, redirects and non-JSON answers raise `WitanError` naming the origin instead of a traceback; `wtn --version`.
 
 ## What's new in 0.19.0
 

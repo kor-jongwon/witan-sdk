@@ -7,6 +7,7 @@ import os
 import re
 import time
 from typing import Any, Iterable
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -14,7 +15,8 @@ from .deprecation import warn_if_deprecated
 from .errors import AuthError, WaitTimeout, WitanError, raise_for
 
 DEFAULT_BASE_URL = "http://localhost:3000"
-DEFAULT_PAY_URL = "http://localhost:3001"
+DEFAULT_PAY_URL = "http://localhost:3001"  # the local stack's pay service; a deployed origin serves it itself
+LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 
 MIN_PART_SIZE = 5 * 1024 * 1024  # S3 multipart rule for every part but the last
 MAX_PARTS = 1000
@@ -24,6 +26,24 @@ CONTRIBUTION_TERMINAL = frozenset({"merged", "rejected"})
 SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
+def default_pay_url(base_url: str) -> str:
+    """Where the pay routes live when ``WITAN_PAY_URL`` is not set: a deployed origin serves
+    ``/paid``, ``/purchases`` and ``/disputes`` itself; the local stack runs the pay service on
+    its own port (its public URL, which the signed statements name)."""
+    host = urlsplit(base_url).hostname or ""
+    return DEFAULT_PAY_URL if host in LOCAL_HOSTS else base_url
+
+
+def _json(response: httpx.Response) -> Any:
+    try:
+        return response.json()
+    except ValueError:
+        kind = response.headers.get("content-type", "no content type").split(";")[0]
+        url = response.request.url
+        raise WitanError(f"{url.scheme}://{url.host} answered with {kind}, not JSON — is this the WITAN origin?",
+                         status=response.status_code) from None
+
+
 class Witan:
     """Client for the WITAN knowledge market.
 
@@ -31,7 +51,9 @@ class Witan:
         api_key: agent key (``km_...``). Falls back to ``WITAN_API_KEY``. Public
             endpoints (search, reviews, comments, projects, leaderboard) work without one.
         base_url: API origin. Falls back to ``WITAN_BASE_URL``, then localhost:3000.
-        pay_url: x402 pay service origin. Falls back to ``WITAN_PAY_URL``, then localhost:3001.
+        pay_url: x402 pay service origin. Falls back to ``WITAN_PAY_URL``, then the base URL — a
+            deployed origin serves ``/paid``, ``/purchases`` and ``/disputes`` itself — or
+            localhost:3001 when the base URL is a local development stack.
         timeout: seconds per request.
         transport: an ``httpx`` transport, for tests.
     """
@@ -49,7 +71,8 @@ class Witan:
 
         self.api_key = api_key or os.environ.get("WITAN_API_KEY") or None
         self.base_url = (base_url or os.environ.get("WITAN_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
-        self.pay_url = (pay_url or os.environ.get("WITAN_PAY_URL") or DEFAULT_PAY_URL).rstrip("/")
+        self.pay_url = (pay_url or os.environ.get("WITAN_PAY_URL") or default_pay_url(self.base_url)).rstrip("/")
+        self.timeout = timeout
         headers = {"user-agent": f"witan-sdk/{__version__}", "accept": "application/json"}
         if self.api_key:
             headers["authorization"] = f"Bearer {self.api_key}"
@@ -81,14 +104,35 @@ class Witan:
     def _request(self, method: str, path: str, *, params: dict[str, Any] | None = None,
                  json: Any = None, auth: bool = False, headers: dict[str, str] | None = None) -> Any:
         if auth and not self.api_key:
-            raise AuthError("this call needs an agent API key (km_...): pass api_key= or set WITAN_API_KEY")
+            raise AuthError("this call needs an agent API key (km_...): set WITAN_API_KEY or pass api_key= — "
+                            "an operator issues one in the console")
         clean = {k: v for k, v in (params or {}).items() if v is not None}
-        response = self._http.request(method, path, params=clean or None, json=json, headers=headers)
+        response = self._send(self._http, method, path, self.base_url, params=clean or None, json=json, headers=headers)
+        if response.is_redirect:
+            raise WitanError(f"{self.base_url} redirected to {response.headers.get('location', '?')} — set "
+                             "WITAN_BASE_URL to the origin it names (usually https://)", status=response.status_code)
         if response.status_code >= 400:
             raise_for(response)
         if response.status_code == 204 or not response.content:
             return None
-        return response.json()
+        return _json(response)
+
+    def _send(self, http: httpx.Client, method: str, url: str, origin: str, **kw: Any) -> httpx.Response:
+        """One request; an unreachable origin or a timeout becomes a WitanError naming the origin."""
+        try:
+            return http.request(method, url, **kw)
+        except httpx.TimeoutException as exc:
+            raise WitanError(f"{origin} did not answer within {self.timeout:g}s") from exc
+        except httpx.RequestError as exc:
+            raise WitanError(f"cannot reach {origin}: {exc or type(exc).__name__} — check the URL "
+                             "(WITAN_BASE_URL / WITAN_PAY_URL) and your network") from exc
+
+    def _pay(self, method: str, path: str, **kw: Any) -> Any:
+        """A call to the pay service (no API key there); non-2xx raises like any call."""
+        response = self._send(self._raw, method, f"{self.pay_url}{path}", self.pay_url, **kw)
+        if response.status_code >= 400:
+            raise_for(response)
+        return _json(response)
 
     def _upload_part(self, url: str, data: bytes) -> str:
         """PUT one part to its presigned URL; returns the ETag the store assigned."""
@@ -275,24 +319,16 @@ class Witan:
         tx = settlement_tx(transaction)
         wallet = wallet_address(private_key)
         origin = pay_origin(self.pay_url)
-        response = self._raw.get(f"{self.pay_url}/disputes/statement", params={"transaction": tx, "wallet": wallet})
-        if response.status_code >= 400:
-            raise_for(response)
-        t = checked_time(response.json(), lambda t: dispute_statement(tx, wallet, origin, t))
-        response = self._raw.post(f"{self.pay_url}/disputes", json={
+        issued = self._pay("GET", "/disputes/statement", params={"transaction": tx, "wallet": wallet})
+        t = checked_time(issued, lambda t: dispute_statement(tx, wallet, origin, t))
+        return self._pay("POST", "/disputes", json={
             "transaction": tx, "reason": reason, "wallet": wallet, "time": t,
             "signature": sign_statement(dispute_statement(tx, wallet, origin, t), private_key),
         })
-        if response.status_code >= 400:
-            raise_for(response)
-        return response.json()
 
     def dispute_status(self, dispute_id: str) -> dict[str, Any]:
         """``{id, status, kind, amountMicro, transaction, reason, refundMicro, refundTx, ...}``."""
-        response = self._raw.get(f"{self.pay_url}/disputes/{dispute_id}")
-        if response.status_code >= 400:
-            raise_for(response)
-        return response.json()
+        return self._pay("GET", f"/disputes/{dispute_id}")
 
     def purchases(self, *, private_key: str | None = None, limit: int = 50,
                   before: str | None = None) -> dict[str, Any]:
@@ -308,21 +344,16 @@ class Witan:
 
         wallet = wallet_address(private_key)
         origin = pay_origin(self.pay_url)
-        response = self._raw.get(f"{self.pay_url}/purchases/statement", params={"wallet": wallet})
-        if response.status_code >= 400:
-            raise_for(response)
-        t = checked_time(response.json(), lambda t: purchase_statement(wallet, origin, t))
+        issued = self._pay("GET", "/purchases/statement", params={"wallet": wallet})
+        t = checked_time(issued, lambda t: purchase_statement(wallet, origin, t))
         params: dict[str, Any] = {"limit": limit}
         if before:
             params["before"] = before
-        response = self._raw.get(f"{self.pay_url}/purchases", params=params, headers={
+        return self._pay("GET", "/purchases", params=params, headers={
             "x-witan-wallet": wallet,
             "x-witan-time": str(t),
             "x-witan-signature": sign_statement(purchase_statement(wallet, origin, t), private_key),
         })
-        if response.status_code >= 400:
-            raise_for(response)
-        return response.json()
 
     # ---- pay -------------------------------------------------------------
     def buy(self, unit_id: str, *, private_key: str | None = None, max_price: "str | float | None" = None,

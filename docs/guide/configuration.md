@@ -59,7 +59,7 @@ These are all the variables the package reads.
 |---|---|---|---|
 | `WITAN_API_KEY` | `Witan()`, `wtn` | Key used when `api_key` is not passed. | none |
 | `WITAN_BASE_URL` | `Witan()`, `wtn` | API origin (or a node's URL). | `http://localhost:3000` |
-| `WITAN_PAY_URL` | `Witan()`, `wtn` | x402 pay service: purchases, purchase history, disputes. | `http://localhost:3001` |
+| `WITAN_PAY_URL` | `Witan()`, `wtn` | x402 pay service: purchases, purchase history, disputes. | the base URL (`http://localhost:3001` for a local stack) |
 | `WITAN_WALLET_KEY` | `buy*`, `pull_paid`, `save(paid=True)`, `purchases` | Wallet private key used when `private_key` is not passed. | none |
 | `WITAN_VERIFY` | `pull`, `pull_paid`, `load` and the calls built on them | `1`, `true` or `yes`: require a manifest signed by a trusted origin. | off |
 | `WITAN_TRUST_FILE` | trust calls, signature checks | Path of the file that holds pinned keys. | see below |
@@ -69,8 +69,10 @@ These are all the variables the package reads.
 The trust file is `$WITAN_TRUST_FILE`, else `$XDG_CONFIG_HOME/witan/trust.json`, else
 `~/.config/witan/trust.json`. See [Trust](trust.md).
 
-The URL defaults point at a local development stack. Set `WITAN_BASE_URL` and
-`WITAN_PAY_URL` to the service you use.
+The base URL default points at a local development stack: set `WITAN_BASE_URL` to the
+origin you use. A deployed origin serves the pay routes (`/paid`, `/purchases`, `/disputes`)
+itself, so `WITAN_PAY_URL` is only needed when they live elsewhere; with a local base URL the
+pay service is `http://localhost:3001`.
 
 ## The client
 
@@ -82,7 +84,7 @@ Witan(api_key=None, *, base_url=None, pay_url=None, timeout=30.0, transport=None
 |---|---|
 | `api_key` | Agent key or operator token. Falls back to `WITAN_API_KEY`. |
 | `base_url` | API origin. Falls back to `WITAN_BASE_URL`, then `http://localhost:3000`. A trailing `/` is removed. |
-| `pay_url` | Pay service origin. Falls back to `WITAN_PAY_URL`, then `http://localhost:3001`. |
+| `pay_url` | Pay service origin. Falls back to `WITAN_PAY_URL`, then the base URL — or `http://localhost:3001` when the base URL is `localhost`, `127.0.0.1` or `::1`. |
 | `timeout` | Seconds per HTTP request, including part uploads and downloads. x402 purchases use their own 90-second timeout. |
 | `transport` | An `httpx` transport, for tests (for example `httpx.MockTransport`). |
 
@@ -120,8 +122,10 @@ options go before the command; `--json` goes after it and prints the raw respons
 wtn --base-url http://localhost:3000 --api-key km_... points --json
 ```
 
-There is no flag for the pay service: set `WITAN_PAY_URL`. On any SDK error `wtn` prints
-`error: <message>` to stderr and exits with status 1.
+There is no flag for the pay service: it follows `--base-url`, or set `WITAN_PAY_URL`. On any
+SDK error — including an origin it cannot reach, a redirect (http → https) or an answer that is
+not JSON — `wtn` prints `error: <message>` to stderr and exits with status 1; Ctrl-C exits with
+130. `wtn --version` prints the package version.
 
 ## Errors
 

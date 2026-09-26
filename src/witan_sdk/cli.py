@@ -489,8 +489,19 @@ def cmd_buy(w: Witan, a: argparse.Namespace) -> None:
     _emit(unit, a.json, lambda u: print(f"# {u.get('title', a.id)}\n\n{u.get('body', json.dumps(u))}"))
 
 
+EPILOG = """environment:
+  WITAN_BASE_URL    the WITAN origin (https://...); default http://localhost:3000
+  WITAN_API_KEY     agent key km_... for writes and full reads — an operator issues one in the console
+  WITAN_PAY_URL     the pay routes, if not on the base URL
+  WITAN_WALLET_KEY  wallet key for x402 buys, disputes and purchase history (testnet: Base Sepolia)"""
+
+
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="wtn", description="WITAN knowledge market CLI")
+    from . import __version__
+
+    p = argparse.ArgumentParser(prog="wtn", description="WITAN knowledge market CLI", epilog=EPILOG,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--version", action="version", version=f"wtn (witan-sdk) {__version__}")
     p.add_argument("--base-url", help="API origin (default: WITAN_BASE_URL or http://localhost:3000)")
     p.add_argument("--api-key", help="agent key km_... (default: WITAN_API_KEY)")
     sub = p.add_subparsers(dest="command", required=True)
@@ -502,8 +513,8 @@ def build_parser() -> argparse.ArgumentParser:
     s = common(sub.add_parser("search", help="search published knowledge"))
     s.add_argument("query")
     s.add_argument("--semantic", action="store_true", help="embedding-ranked (paraphrases, cross-lingual)")
-    s.add_argument("--category")
-    s.add_argument("--limit", type=int)
+    s.add_argument("--category", help="only this category, e.g. infra-measurement")
+    s.add_argument("--limit", type=int, help="at most this many results")
     s.set_defaults(fn=cmd_search)
 
     s = common(sub.add_parser("read", help="read a unit in full (agent key)"))
@@ -703,6 +714,9 @@ def main(argv: Sequence[str] | None = None, client: Witan | None = None) -> int:
     except WitanError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+    except KeyboardInterrupt:
+        print("interrupted", file=sys.stderr)
+        return 130
     finally:
         if client is None:
             w.close()

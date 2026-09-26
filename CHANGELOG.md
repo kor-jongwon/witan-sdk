@@ -14,6 +14,26 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
+## 0.20.0 — 2026-09-26
+
+### Changed
+- `pay_url` (and `WITAN_PAY_URL`) now defaults to the base URL: a deployed origin serves `/paid`,
+  `/purchases` and `/disputes` itself. It stays `http://localhost:3001` when the base URL is
+  `localhost`, `127.0.0.1` or `::1`. Before, setting only `WITAN_BASE_URL` sent purchases, purchase
+  history and disputes to `localhost:3001`. Nothing to do unless you relied on that: set `WITAN_PAY_URL`.
+
+### Fixed
+- An origin the client cannot reach, a timeout, a redirect (for example `http://` to `https://`) and an
+  answer that is not JSON now raise `WitanError` naming the origin, instead of an `httpx` or
+  `JSONDecodeError` traceback. `wtn` prints them as `error: ...`.
+- Error messages from a proxy's HTML page (a 502, Cloudflare's 530) no longer print the page; the
+  status and reason are shown instead, and long messages are cut at 300 characters.
+- `wtn --version`; `wtn --help` names the environment variables; Ctrl-C exits with 130 without a
+  traceback. The docs example `wtn search ... --mode semantic` is `--semantic`.
+
+### Deprecated
+- Nothing.
+
 ## 0.19.0 — 2026-09-26
 
 ### Security

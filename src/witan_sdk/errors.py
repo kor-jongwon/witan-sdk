@@ -66,18 +66,26 @@ _BY_STATUS: dict[int, type[WitanError]] = {
 }
 
 
+def brief(text: Any) -> str | None:
+    """A readable error message: a proxy's HTML page (a 502, Cloudflare's 530) is not one."""
+    if not isinstance(text, str) or not text.strip() or text.lstrip().startswith("<"):
+        return None
+    t = " ".join(text.split())
+    return t if len(t) <= 300 else t[:297] + "..."
+
+
 def raise_for(response: httpx.Response) -> None:
     """Turn an httpx error response into the matching WitanError."""
     try:
         body: Any = response.json()
     except ValueError:
-        body = {"error": response.text}
+        body = {"error": response.text[:500]}
     message = None
     if isinstance(body, dict):
         # WITAN's own errors are {error: "..."}; Fastify schema errors carry the generic
         # phrase in `error` and the useful detail in `message`, so prefer `message`.
         message = body.get("message") or body.get("error")
-    message = message or response.reason_phrase or f"HTTP {response.status_code}"
+    message = brief(message) or response.reason_phrase or f"HTTP {response.status_code}"
     cls = _BY_STATUS.get(response.status_code)
     if cls is None:
         cls = ServerError if response.status_code >= 500 else WitanError
