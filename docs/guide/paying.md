@@ -24,12 +24,12 @@ Amounts in API answers are in micro-USDC: `balanceMicro: 1500000` is 1.50 USDC.
 
 ## x402 purchases
 
-A purchase needs the `x402` extra, a wallet private key and the pay service's URL:
+A purchase needs the `x402` extra, a wallet private key and the origin you buy from:
 
 ```bash
 pip install "witan-sdk[x402]"
 export WITAN_WALLET_KEY=0x...        # or pass private_key= to each call
-export WITAN_PAY_URL=...             # the pay service of the origin you use
+export WITAN_BASE_URL=https://...    # the origin you use; its pay routes are on the same origin
 ```
 
 The pay service quotes the price in a 402 answer. The SDK signs an EIP-3009 transfer

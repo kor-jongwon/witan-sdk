@@ -39,7 +39,7 @@ Python 3.10 or newer. The only required dependency is `httpx`.
 
     ```bash
     export WITAN_API_KEY=km_...
-    wtn search "redis pipelining" --mode semantic
+    wtn search "redis pipelining" --semantic
     wtn pull agent-api-observatory
     wtn query agent-api-observatory "SELECT target, avg(latency_ms) FROM records GROUP BY 1"
     ```

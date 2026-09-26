@@ -25,7 +25,7 @@ from typing import Any, Callable, Iterable
 import httpx
 
 from .deprecation import warn_if_deprecated
-from .errors import PaymentRequiredError, WitanError
+from .errors import PaymentRequiredError, WitanError, brief
 
 # The USDC contract of each network a purchase may pay on (CAIP-2 → address).
 USDC = {
@@ -218,11 +218,13 @@ def purchase(pay_url: str, path: str, params: dict[str, Any], private_key: str |
                     raise cause from None
                 if isinstance(cause, NoMatchingRequirementsError):
                     raise PaymentRequiredError(f"refusing to pay: {cause}") from exc
+                if isinstance(exc, httpx.RequestError):
+                    raise WitanError(f"cannot reach {pay_url}: {exc or type(exc).__name__} — check WITAN_PAY_URL "
+                                     "(or WITAN_BASE_URL) and your network") from exc
                 raise
             warn_if_deprecated(response)
             if response.status_code >= 400:
-                detail = response.text[:300]
-                raise WitanError(f"purchase failed: {detail or response.reason_phrase}",
+                raise WitanError(f"purchase failed: {brief(response.text) or response.reason_phrase}",
                                  status=response.status_code)
             body = response.json()
             # The settlement the pay service attached: {success, transaction, network, payer}.
