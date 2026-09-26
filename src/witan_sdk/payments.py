@@ -30,6 +30,30 @@ def _load_x402():
     return Account, x402Client, x402HttpxClient, register_exact_evm_client, EthAccountSigner
 
 
+def _account(private_key: str | None):
+    key = private_key or os.environ.get("WITAN_WALLET_KEY")
+    if not key:
+        raise PaymentRequiredError("no wallet key: pass private_key= or set WITAN_WALLET_KEY")
+    try:
+        from eth_account import Account
+    except ImportError as exc:  # pragma: no cover - exercised only without the extra
+        raise PaymentRequiredError('wallet signatures need the extra: pip install "witan-sdk[x402]"') from exc
+    return Account.from_key(key)
+
+
+def wallet_address(private_key: str | None) -> str:
+    """The address of the wallet key (argument or ``WITAN_WALLET_KEY``), lowercase."""
+    return _account(private_key).address.lower()
+
+
+def sign_statement(statement: str, private_key: str | None) -> str:
+    """EIP-191 personal_sign of ``statement`` with the wallet key, as 0x-hex. Only the
+    signature leaves the process."""
+    from eth_account.messages import encode_defunct
+
+    return "0x" + bytes(_account(private_key).sign_message(encode_defunct(text=statement)).signature).hex()
+
+
 def purchase(pay_url: str, path: str, params: dict[str, Any], private_key: str | None) -> dict[str, Any]:
     key = private_key or os.environ.get("WITAN_WALLET_KEY")
     if not key:

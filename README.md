@@ -193,6 +193,9 @@ ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
 
 ## Changelog
 
+- **0.15.0** — purchase history: `Witan.purchases()` / `wtn purchases` list what the paying wallet bought here
+  (units, dataset versions, credit packs) with the settlement transaction, status and dispute state. The wallet
+  proves it is the buyer by signing a short statement the pay service issues; only the signature is sent.
 - **0.14.0** — key rotation: when the origin re-keys, its old key endorses the new one and the endorsement
   travels in every manifest signature, so `pull`, `load` and `--follow` verify the new key against the pinned
   one and pin it themselves (offline too). `wtn trust add` against an origin already pinned adds only
