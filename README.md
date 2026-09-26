@@ -201,6 +201,10 @@ and only a short balance makes the API answer 402 (`PaymentRequiredError`, with 
 and the credit shortfall in `.body`). `w.credits()` / `wtn credits` show the balance and
 ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
 
+## What's new in 0.19.0
+
+**Security** — `push` has the origin sign each part URL for its exact length; the store refuses any other size.
+
 ## What's new in 0.18.1
 
 **Added** — a Cursor plugin next to the Claude Code one (same MCP server and skill). No API change.

@@ -392,7 +392,7 @@ def test_push_splits_uploads_in_parallel_and_completes(w: Witan, fake: Fake, tmp
     f = tmp_path / "records.jsonl"
     f.write_bytes(b"0123456789")  # 10 bytes → parts of 4: 4, 4, 2
     r = w.projects.push("agent-api-observatory", f, compress=False, part_size=4, wait=True, source_declaration="probe")
-    assert fake.upload_inits[-1] == {"bytes": 10, "parts": 3, "sourceDeclaration": "probe", "compression": "none"}
+    assert fake.upload_inits[-1] == {"bytes": 10, "parts": 3, "partSize": 4, "sourceDeclaration": "probe", "compression": "none"}
     assert [fake.put_bodies[n][0] for n in (1, 2, 3)] == [b"0123", b"4567", b"89"]
     assert fake.completions[-1] == [{"n": 1, "etag": "etag-1"}, {"n": 2, "etag": "etag-2"}, {"n": 3, "etag": "etag-3"}]
     assert r["contributionId"] == "c-9" and r["parts"] == 3 and r["uploadedParts"] == 3 and r["status"] == "merged"

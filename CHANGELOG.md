@@ -14,6 +14,16 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
+## 0.19.0 — 2026-09-26
+
+### Security
+- `push` (and `load --push`, `promote`) tells the origin its part size, and the origin signs every part URL
+  for its exact length: the object store refuses a part of any other size, so an upload can never store
+  more than it declared. Resumed uploads started by an earlier version keep their unbound URLs.
+
+### Deprecated
+- Nothing.
+
 ## 0.18.1 — 2026-09-26
 
 ### Added

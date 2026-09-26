@@ -813,7 +813,7 @@ class Projects:
             state = saved
         if state is None:
             init = self._c._request("POST", f"/projects/{slug}/uploads", json={
-                "bytes": size, "parts": parts,
+                "bytes": size, "parts": parts, "partSize": part_size,  # the origin signs each part's exact length
                 "sourceDeclaration": source_declaration,
                 "compression": "gzip" if compress else "none",
             }, auth=True)
