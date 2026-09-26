@@ -588,6 +588,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#run-a-node-in-a-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run a node in a container
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#writes-on-a-node" class="md-nav__link">
     <span class="md-ellipsis">
       Writes on a node
@@ -954,6 +963,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#run-a-node-in-a-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run a node in a container
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#writes-on-a-node" class="md-nav__link">
     <span class="md-ellipsis">
       Writes on a node
@@ -1181,6 +1199,106 @@ after an hour, so clients that fetch parts need no token.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">WITAN_NODE_TOKEN</span><span class="o">=</span>...<span class="w">          </span><span class="c1"># a long random string</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>wtn<span class="w"> </span>serve<span class="w"> </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w"> </span>--read-only
 </code></pre></div>
+<h2 id="run-a-node-in-a-container">Run a node in a container<a class="headerlink" href="#run-a-node-in-a-container" title="Permanent link">&para;</a></h2>
+<p>Every release also ships as a container image, built from the same wheel PyPI serves (with the
+<code>query</code> extra) and signed with a build provenance:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ghcr.io/kor-jongwon/witan-node:0.21.0     # also :0.21 and :latest; linux/amd64 and linux/arm64
+</code></pre></div>
+<p>Install with <code>pip</code> on a laptop or next to the agent; use the image on a server, in Kubernetes or
+wherever a pinned, isolated runtime is the rule. Both run the same <code>wtn serve</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>docker<span class="w"> </span>volume<span class="w"> </span>create<span class="w"> </span>witan-data
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="c1"># fill the store: any wtn command runs in /data, the directory serve reads</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-v<span class="w"> </span>witan-data:/data<span class="w"> </span>-e<span class="w"> </span><span class="nv">WITAN_BASE_URL</span><span class="o">=</span>https://witan.example<span class="w"> </span>-e<span class="w"> </span><span class="nv">WITAN_API_KEY</span><span class="o">=</span>km_...<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span>ghcr.io/kor-jongwon/witan-node<span class="w"> </span>pull<span class="w"> </span>api-latency-benchmarks@12
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># serve it</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>--name<span class="w"> </span>witan-node<span class="w"> </span>--restart<span class="w"> </span>unless-stopped<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">  </span>-p<span class="w"> </span><span class="m">127</span>.0.0.1:8686:8686<span class="w"> </span>-e<span class="w"> </span><span class="nv">WITAN_NODE_TOKEN</span><span class="o">=</span><span class="s2">"</span><span class="k">$(</span>openssl<span class="w"> </span>rand<span class="w"> </span>-hex<span class="w"> </span><span class="m">24</span><span class="k">)</span><span class="s2">"</span><span class="w"> </span>-v<span class="w"> </span>witan-data:/data<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">  </span>ghcr.io/kor-jongwon/witan-node<span class="w"> </span>--read-only
+</code></pre></div>
+<p>What the image does with its arguments:</p>
+<table>
+<thead>
+<tr>
+<th>Arguments</th>
+<th>Runs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>none, or options first (<code>--follow ...</code>, <code>--read-only</code>)</td>
+<td><code>wtn serve --store /data/witan-data --host 0.0.0.0 --port $WITAN_NODE_PORT</code> plus the options</td>
+</tr>
+<tr>
+<td>a command (<code>pull</code>, <code>load</code>, <code>trust add</code>, <code>query</code>, ...)</td>
+<td><code>wtn &lt;command&gt; ...</code> in <code>/data</code></td>
+</tr>
+<tr>
+<td><code>--version</code></td>
+<td><code>wtn --version</code></td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WITAN_NODE_TOKEN</code></td>
+<td>Required to serve: the node listens on every interface inside the container, so it refuses to start without one. It stays in the environment, not on the command line.</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>WITAN_NODE_PORT</code></td>
+<td>The port inside the container (and the one the health check probes).</td>
+<td><code>8686</code></td>
+</tr>
+<tr>
+<td><code>WITAN_BASE_URL</code>, <code>WITAN_API_KEY</code></td>
+<td>The origin and agent key for <code>pull</code> and <code>--follow</code>.</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>WITAN_TRUST_FILE</code></td>
+<td>Pinned signing keys, kept in the volume.</td>
+<td><code>/data/trust.json</code></td>
+</tr>
+</tbody>
+</table>
+<p>The volume holds the store (<code>/data/witan-data</code>) and the pinned keys (<code>/data/trust.json</code>), so
+they outlive the container. The node runs as uid 10001, not root, works with a read-only root
+filesystem (<code>--read-only --tmpfs /tmp</code>), and the image's health check probes <code>GET /healthz</code>.
+Publish the port on <code>127.0.0.1</code> unless other machines should reach the node.</p>
+<p>Follow the origin with signatures checked:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-v<span class="w"> </span>witan-data:/data<span class="w"> </span>-e<span class="w"> </span><span class="nv">WITAN_BASE_URL</span><span class="o">=</span>https://witan.example<span class="w"> </span>ghcr.io/kor-jongwon/witan-node<span class="w"> </span>trust<span class="w"> </span>add
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>--name<span class="w"> </span>witan-node<span class="w"> </span>-p<span class="w"> </span><span class="m">127</span>.0.0.1:8686:8686<span class="w"> </span>-v<span class="w"> </span>witan-data:/data<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">WITAN_NODE_TOKEN</span><span class="o">=</span>...<span class="w"> </span>-e<span class="w"> </span><span class="nv">WITAN_BASE_URL</span><span class="o">=</span>https://witan.example<span class="w"> </span>-e<span class="w"> </span><span class="nv">WITAN_API_KEY</span><span class="o">=</span>km_...<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span>ghcr.io/kor-jongwon/witan-node<span class="w"> </span>--follow<span class="w"> </span>api-latency-benchmarks<span class="w"> </span>--interval<span class="w"> </span><span class="m">300</span><span class="w"> </span>--verify
+</code></pre></div>
+<p>With Compose:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">services</span><span class="p">:</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">witan-node</span><span class="p">:</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ghcr.io/kor-jongwon/witan-node:0.21</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"--follow"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"api-latency-benchmarks"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"--verify"</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">      </span><span class="nt">WITAN_NODE_TOKEN</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${WITAN_NODE_TOKEN:?set a token}</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">      </span><span class="nt">WITAN_BASE_URL</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://witan.example</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">      </span><span class="nt">WITAN_API_KEY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${WITAN_API_KEY}</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">    </span><span class="nt">ports</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"127.0.0.1:8686:8686"</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">    </span><span class="nt">volumes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"witan-data:/data"</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">    </span><span class="nt">read_only</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="w">    </span><span class="nt">tmpfs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"/tmp"</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="w">    </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">unless-stopped</span>
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="nt">volumes</span><span class="p">:</span>
+<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="w">  </span><span class="nt">witan-data</span><span class="p">:</span>
+</code></pre></div>
+<p>Check where an image came from before you run it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>gh<span class="w"> </span>attestation<span class="w"> </span>verify<span class="w"> </span>oci://ghcr.io/kor-jongwon/witan-node:0.21.0<span class="w"> </span>--owner<span class="w"> </span>kor-jongwon
+</code></pre></div>
 <h2 id="writes-on-a-node">Writes on a node<a class="headerlink" href="#writes-on-a-node" title="Permanent link">&para;</a></h2>
 <p>Copies of origin projects (pulled, loaded or followed) are read-only on a node; a write to one
 answers 405. Projects created on the node itself are local and take writes.</p>
@@ -1200,29 +1318,29 @@ answers 405. Projects created on the node itself are local and take writes.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Python</label><label for="__tabbed_1_2">CLI</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">node</span> <span class="o">=</span> <span class="n">Witan</span><span class="p">(</span><span class="s2">"any-key"</span><span class="p">,</span> <span class="n">base_url</span><span class="o">=</span><span class="s2">"http://127.0.0.1:8686"</span><span class="p">)</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">node</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="s2">"agent-runs"</span><span class="p">,</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="s2">"Crawler agent runs"</span><span class="p">,</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="s2">"One record per crawler step: run id, step number, outcome and duration."</span><span class="p">,</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="p">{</span><span class="s2">"fields"</span><span class="p">:</span> <span class="p">[{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"run_id"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">},</span>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>                <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"step"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"integer"</span><span class="p">},</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>                <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"status"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">},</span>
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>                <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"duration_ms"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"number"</span><span class="p">}],</span>
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>     <span class="s2">"allowExtra"</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span>
-<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="p">)</span>
-<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="n">r</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">contribute</span><span class="p">(</span>
-<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>    <span class="s2">"agent-runs"</span><span class="p">,</span>
-<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    <span class="p">[{</span><span class="s2">"run_id"</span><span class="p">:</span> <span class="s2">"r-0192"</span><span class="p">,</span> <span class="s2">"step"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"status"</span><span class="p">:</span> <span class="s2">"ok"</span><span class="p">,</span> <span class="s2">"duration_ms"</span><span class="p">:</span> <span class="mf">412.0</span><span class="p">}],</span>
-<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>    <span class="n">idempotency_key</span><span class="o">=</span><span class="s2">"r-0192-step-1"</span><span class="p">,</span>
-<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="p">)</span>
-<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="nb">print</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s2">"status"</span><span class="p">],</span> <span class="n">r</span><span class="p">[</span><span class="s2">"mergedVersion"</span><span class="p">])</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">node</span> <span class="o">=</span> <span class="n">Witan</span><span class="p">(</span><span class="s2">"any-key"</span><span class="p">,</span> <span class="n">base_url</span><span class="o">=</span><span class="s2">"http://127.0.0.1:8686"</span><span class="p">)</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">node</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    <span class="s2">"agent-runs"</span><span class="p">,</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="s2">"Crawler agent runs"</span><span class="p">,</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="s2">"One record per crawler step: run id, step number, outcome and duration."</span><span class="p">,</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="p">{</span><span class="s2">"fields"</span><span class="p">:</span> <span class="p">[{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"run_id"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">},</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>                <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"step"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"integer"</span><span class="p">},</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>                <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"status"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">},</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>                <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"duration_ms"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"number"</span><span class="p">}],</span>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>     <span class="s2">"allowExtra"</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="p">)</span>
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="n">r</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">contribute</span><span class="p">(</span>
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>    <span class="s2">"agent-runs"</span><span class="p">,</span>
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>    <span class="p">[{</span><span class="s2">"run_id"</span><span class="p">:</span> <span class="s2">"r-0192"</span><span class="p">,</span> <span class="s2">"step"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"status"</span><span class="p">:</span> <span class="s2">"ok"</span><span class="p">,</span> <span class="s2">"duration_ms"</span><span class="p">:</span> <span class="mf">412.0</span><span class="p">}],</span>
+<a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a>    <span class="n">idempotency_key</span><span class="o">=</span><span class="s2">"r-0192-step-1"</span><span class="p">,</span>
+<a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a><span class="p">)</span>
+<a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a><span class="nb">print</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s2">"status"</span><span class="p">],</span> <span class="n">r</span><span class="p">[</span><span class="s2">"mergedVersion"</span><span class="p">])</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>wtn<span class="w"> </span>--base-url<span class="w"> </span>http://127.0.0.1:8686<span class="w"> </span>--api-key<span class="w"> </span>any-key<span class="w"> </span>create<span class="w"> </span>agent-runs<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span>--title<span class="w"> </span><span class="s2">"Crawler agent runs"</span><span class="w"> </span>--readme-file<span class="w"> </span>README.md<span class="w"> </span>--schema<span class="w"> </span>@schema.json
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>wtn<span class="w"> </span>--base-url<span class="w"> </span>http://127.0.0.1:8686<span class="w"> </span>--api-key<span class="w"> </span>any-key<span class="w"> </span>contribute<span class="w"> </span>agent-runs<span class="w"> </span>--file<span class="w"> </span>runs.jsonl
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>wtn<span class="w"> </span>--base-url<span class="w"> </span>http://127.0.0.1:8686<span class="w"> </span>--api-key<span class="w"> </span>any-key<span class="w"> </span>create<span class="w"> </span>agent-runs<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span>--title<span class="w"> </span><span class="s2">"Crawler agent runs"</span><span class="w"> </span>--readme-file<span class="w"> </span>README.md<span class="w"> </span>--schema<span class="w"> </span>@schema.json
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>wtn<span class="w"> </span>--base-url<span class="w"> </span>http://127.0.0.1:8686<span class="w"> </span>--api-key<span class="w"> </span>any-key<span class="w"> </span>contribute<span class="w"> </span>agent-runs<span class="w"> </span>--file<span class="w"> </span>runs.jsonl
 </code></pre></div>
 </div>
 </div>
@@ -1240,13 +1358,13 @@ carries <code>promoted: {from, version, to, records}</code>. Promoting needs the
 <div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Python</label><label for="__tabbed_2_2">CLI</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">origin</span> <span class="o">=</span> <span class="n">Witan</span><span class="p">(</span><span class="s2">"km_..."</span><span class="p">,</span> <span class="n">base_url</span><span class="o">=</span><span class="s2">"https://witan.example"</span><span class="p">)</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">r</span> <span class="o">=</span> <span class="n">origin</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">promote</span><span class="p">(</span><span class="s2">"agent-runs"</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="s2">"crawler-runs"</span><span class="p">)</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s2">"status"</span><span class="p">],</span> <span class="n">r</span><span class="p">[</span><span class="s2">"promoted"</span><span class="p">])</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">origin</span> <span class="o">=</span> <span class="n">Witan</span><span class="p">(</span><span class="s2">"km_..."</span><span class="p">,</span> <span class="n">base_url</span><span class="o">=</span><span class="s2">"https://witan.example"</span><span class="p">)</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">r</span> <span class="o">=</span> <span class="n">origin</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">promote</span><span class="p">(</span><span class="s2">"agent-runs"</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="s2">"crawler-runs"</span><span class="p">)</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s2">"status"</span><span class="p">],</span> <span class="n">r</span><span class="p">[</span><span class="s2">"promoted"</span><span class="p">])</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>wtn<span class="w"> </span>--base-url<span class="w"> </span>https://witan.example<span class="w"> </span>promote<span class="w"> </span>agent-runs<span class="w"> </span>--to<span class="w"> </span>crawler-runs<span class="w"> </span>--store<span class="w"> </span>witan-data
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>wtn<span class="w"> </span>--base-url<span class="w"> </span>https://witan.example<span class="w"> </span>promote<span class="w"> </span>agent-runs<span class="w"> </span>--to<span class="w"> </span>crawler-runs<span class="w"> </span>--store<span class="w"> </span>witan-data
 </code></pre></div>
 </div>
 </div>
