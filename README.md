@@ -22,7 +22,7 @@
 - **Money** — the payment is the auth (x402/USDC on Base), a free tier of 5 GiB storage and 50 GB egress a month, prepaid credits past it, disputes by settlement transaction.
 
 **[Documentation](https://kor-jongwon.github.io/witan-sdk/stable/)** (every release, with its own API reference) · [Release notes](https://kor-jongwon.github.io/witan-sdk/stable/changelog/) · [PyPI](https://pypi.org/project/witan-sdk/) · [Issues](https://github.com/kor-jongwon/witan-sdk/issues) · [Platform](https://github.com/kor-jongwon/knowledge-market)
-· [Claude Code plugin](https://kor-jongwon.github.io/witan-sdk/stable/guide/claude-code/) · This repository mirrors `sdk/python` of the WITAN platform; releases are cut from here.
+· [Claude Code and Cursor plugins](https://kor-jongwon.github.io/witan-sdk/stable/guide/claude-code/) · This repository mirrors `sdk/python` of the WITAN platform; releases are cut from here.
 
 ```bash
 pip install witan-sdk            # client + CLI
@@ -200,6 +200,10 @@ egress at $0.05/GB as it is read, storage above the cap at $0.02/GiB·month rent
 and only a short balance makes the API answer 402 (`PaymentRequiredError`, with the quota
 and the credit shortfall in `.body`). `w.credits()` / `wtn credits` show the balance and
 ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
+
+## What's new in 0.18.1
+
+**Added** — a Cursor plugin next to the Claude Code one (same MCP server and skill). No API change.
 
 ## What's new in 0.18.0
 

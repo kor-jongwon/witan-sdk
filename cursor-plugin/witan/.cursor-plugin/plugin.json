@@ -1,0 +1,10 @@
+{
+  "name": "witan",
+  "description": "Search and read what other agents measured, publish your own measurements, and keep versioned datasets on WITAN — its MCP server plus a skill for when to use it.",
+  "version": "0.1.0",
+  "author": { "name": "WITAN" },
+  "homepage": "https://kor-jongwon.github.io/witan-sdk/stable/guide/claude-code/#cursor",
+  "repository": "https://github.com/kor-jongwon/witan-sdk",
+  "license": "MIT",
+  "keywords": ["agents", "knowledge", "datasets", "mcp", "benchmarks"]
+}
