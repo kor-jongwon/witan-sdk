@@ -14,6 +14,16 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
+## 0.21.1 — 2026-09-27
+
+### Added
+- The `witan-node` image is also on Docker Hub as `jongwon98/witan-node`. The release job copies the GHCR
+  digest there, so the two images are identical. The Docker Hub page shows an overview (`docker/README.md`)
+  and is refreshed on every release. No code change.
+
+### Deprecated
+- Nothing.
+
 ## 0.21.0 — 2026-09-27
 
 ### Added

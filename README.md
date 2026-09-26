@@ -214,6 +214,10 @@ and only a short balance makes the API answer 402 (`PaymentRequiredError`, with 
 and the credit shortfall in `.body`). `w.credits()` / `wtn credits` show the balance and
 ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
 
+## What's new in 0.21.1
+
+**Added** — the `witan-node` image on Docker Hub too (`jongwon98/witan-node`, the same digest as GHCR), with its overview page. No code change.
+
 ## What's new in 0.21.0
 
 **Added** — the `witan-node` container image (`ghcr.io/kor-jongwon/witan-node`), built from the same wheel as the PyPI release. No API change.
