@@ -114,7 +114,7 @@ def cmd_quota(w: Witan, a: argparse.Namespace) -> None:
 
 def cmd_credits(w: Witan, a: argparse.Namespace) -> None:
     if a.action == "buy":
-        r = w.buy_credits()
+        r = w.buy_credits(max_price=a.max_price)
         _emit(r, a.json, lambda r: print(f"credited ${r['creditedMicro'] / 1e6:.2f} → balance ${r['balanceMicro'] / 1e6:.6f}"))
         return
     c = w.credits()
@@ -197,7 +197,7 @@ def cmd_pull(w: Witan, a: argparse.Namespace) -> None:
               f" · balance {b['balanceMicro'] / 1e6:.2f} USDC", file=sys.stderr)
         version = b["version"]
     if a.paid:
-        m = w.projects.pull_paid(slug, a.out, version=version, workers=a.workers, verify=verify)
+        m = w.projects.pull_paid(slug, a.out, version=version, workers=a.workers, verify=verify, max_price=a.max_price)
     else:
         m = w.projects.pull(slug, a.out, version=version, format=a.format, page=a.page, workers=a.workers, verify=verify)
 
@@ -426,7 +426,7 @@ def cmd_purchases(w: Witan, a: argparse.Namespace) -> None:
 
 def cmd_trust(w: Witan, a: argparse.Namespace) -> None:
     if a.action == "add":
-        r = w.trust(force=a.force)
+        r = w.trust(force=a.force, origin=a.as_origin)
 
         def human_add(r: dict[str, Any]) -> None:
             print(f"trusting {r['origin']} · keys {', '.join(r['keys'])}"
@@ -436,9 +436,9 @@ def cmd_trust(w: Witan, a: argparse.Namespace) -> None:
             if r.get("refused"):
                 print(f"refused: {', '.join(r['refused'])} — no pinned key endorses it. If the origin re-keyed, check the "
                       "key id with its operator, then: wtn trust add --force", file=sys.stderr)
-            if r["origin"] != r["from"]:  # trust on first use: the server at WITAN_BASE_URL spoke for that origin
-                print(f"note: these keys were fetched from {r['from']}, which says it is {r['origin']} — "
-                      "pin only if you trust it to speak for that origin", file=sys.stderr)
+            if r["origin"] != r["from"]:  # --origin: the server at WITAN_BASE_URL spoke for that origin
+                print(f"note: these keys were fetched from {r['from']}, which speaks for {r['origin']} (--origin)",
+                      file=sys.stderr)
 
         _emit(r, a.json, human_add)
     elif a.action == "remove":
@@ -456,6 +456,8 @@ def cmd_trust(w: Witan, a: argparse.Namespace) -> None:
                 def how(k: dict[str, Any]) -> str:
                     if k.get("revoked"):
                         return f"{k['kid']} (revoked)"
+                    if k.get("status") == "retired":
+                        return f"{k['kid']} (retired)"
                     if k.get("endorsedBy"):
                         return f"{k['kid']} (endorsed by {k['endorsedBy']})"
                     return f"{k['kid']} (forced)" if k.get("forced") else k["kid"]
@@ -472,7 +474,7 @@ def _size(n: int) -> str:
 
 
 def cmd_buy(w: Witan, a: argparse.Namespace) -> None:
-    unit = w.buy(a.id)
+    unit = w.buy(a.id, max_price=a.max_price)
     _emit(unit, a.json, lambda u: print(f"# {u.get('title', a.id)}\n\n{u.get('body', json.dumps(u))}"))
 
 
@@ -526,8 +528,10 @@ def build_parser() -> argparse.ArgumentParser:
     common(sub.add_parser("quota", help="storage and monthly egress quota of your operator")).set_defaults(fn=cmd_quota)
     s = common(sub.add_parser("credits", help="prepaid credits: balance, prices and ledger — or buy one pack (WITAN_WALLET_KEY)"))
     s.add_argument("action", nargs="?", choices=["buy"], help="buy: top up one pack over x402")
+    _max_price(s)
     s.set_defaults(fn=cmd_credits)
-    s = common(sub.add_parser("dispute", help="dispute a settled payment by its settlement tx hash (refund back to the paying wallet after review)"))
+    s = common(sub.add_parser("dispute", help="dispute a settled payment by its settlement tx hash, signed with the wallet that "
+                                              "paid (WITAN_WALLET_KEY; refund back to it after review)"))
     s.add_argument("target", help="settlement tx hash (x402.transaction of a buy), or a dispute id with --status")
     s.add_argument("--reason", help="what went wrong (3-500 chars)")
     s.add_argument("--status", action="store_true", help="show the state of a dispute id instead of opening one")
@@ -556,6 +560,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--paid", action="store_true", help="buy the version over x402 first (WITAN_WALLET_KEY), then download its parts")
     s.add_argument("--credits", action="store_true", help="a paid dataset: buy the version with your operator's prepaid credits first (no wallet)")
     s.add_argument("--verify", action="store_true", help="require a manifest signed by a trusted origin (see wtn trust)")
+    _max_price(s)
     s.set_defaults(fn=cmd_pull)
 
     s = common(sub.add_parser("query", help="run SQL over a dataset version locally with DuckDB (pulls the parts first; the table is `records`)"))
@@ -624,6 +629,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("action", nargs="?", choices=["add", "list", "remove"], default="list")
     s.add_argument("origin", nargs="?", help="for remove: the origin, as wtn trust list shows it")
     s.add_argument("--force", action="store_true", help="add: also pin keys no pinned key endorses (after checking them with the operator)")
+    s.add_argument("--origin", dest="as_origin", metavar="URL",
+                   help="add: the origin the server at WITAN_BASE_URL speaks for, when that is another URL (a proxy)")
     s.set_defaults(fn=cmd_trust)
 
     s = common(sub.add_parser("create", help="create a dataset project: on the origin (key = operator token wto_...) or a local project on a node"))
@@ -653,8 +660,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = common(sub.add_parser("buy", help="buy a unit with USDC over x402 (WITAN_WALLET_KEY)"))
     s.add_argument("id")
+    _max_price(s)
     s.set_defaults(fn=cmd_buy)
     return p
+
+
+def _max_price(sp: argparse.ArgumentParser) -> None:
+    sp.add_argument("--max-price", metavar="USD", help="refuse an x402 payment above this (default: WITAN_MAX_PRICE or 1.00); "
+                                                       "networks other than Base Sepolia need WITAN_X402_NETWORKS")
 
 
 def main(argv: Sequence[str] | None = None, client: Witan | None = None) -> int:

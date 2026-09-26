@@ -24,7 +24,9 @@ origin's gates and merge inside the request (see ``node_write``). ``--read-only`
 writes off. ``follow`` keeps chosen projects current by pulling their latest version from
 the origin on an interval. SQL runs in DuckDB with file
 access limited to the project's parts directory. Bound to loopback by default; any other
-address requires a token.
+address requires a token. Web pages cannot use a node behind its user's back: a request must
+name the node's own address in Host (DNS rebinding), an Origin header must be a loopback one
+unless the request carries the token, and POST bodies must be declared JSON.
 """
 
 from __future__ import annotations
@@ -532,7 +534,12 @@ class _Handler(BaseHTTPRequestHandler):
             self.wfile.write(data)
 
     def _body(self) -> Any:
-        n = int(self.headers.get("content-length") or 0)
+        try:
+            n = int(self.headers.get("content-length") or 0)
+        except ValueError as exc:
+            raise NodeError(400, "content-length must be a number") from exc
+        if n < 0:  # rfile.read(-1) would wait for the client to close the connection
+            raise NodeError(400, "content-length must not be negative")
         if n > MAX_BODY:
             raise NodeError(413, "request body too large")
         raw = self.rfile.read(n) if n else b""
@@ -548,6 +555,28 @@ class _Handler(BaseHTTPRequestHandler):
         header = self.headers.get("authorization") or ""
         given = header[7:] if header.startswith("Bearer ") else ""
         return hmac.compare_digest(given.encode(), token.encode())
+
+    def _host_ok(self) -> bool:
+        """Host must be this node's own address: a page whose name was rebound to 127.0.0.1 sends
+        its own name, and must not reach the store through the visitor's browser."""
+        bound, port = self.server.server_address[:2]
+        if bound in ("0.0.0.0", "::", ""):  # every interface: a token is required there, and it is the guard
+            return True
+        names = {"localhost", "127.0.0.1", "[::1]", f"[{bound}]" if ":" in bound else bound}
+        allowed = {f"{n}:{port}" for n in names} | (names if port == 80 else set())
+        return (self.headers.get("host") or "").strip().lower() in allowed
+
+    def _guard(self, method: str) -> None:
+        if not self._host_ok():
+            raise NodeError(403, "this node answers only to its own address (Host) — a guard against DNS rebinding")
+        origin = self.headers.get("origin")
+        if origin is not None and not _loopback_origin(origin) and not (self._node.token and self._authorized()):
+            raise NodeError(403, f"requests from web pages at {origin[:100]} are refused — a node trusts other origins only "
+                                 "with its token")
+        if method == "POST":
+            ctype = (self.headers.get("content-type") or "").split(";")[0].strip().lower()
+            if ctype != "application/json":
+                raise NodeError(415, "POST bodies must be JSON (content-type: application/json)")
 
     @staticmethod
     def _int(q: dict[str, list[str]], key: str, default: int | None, lo: int, hi: int | None) -> int | None:
@@ -584,6 +613,7 @@ class _Handler(BaseHTTPRequestHandler):
         try:
             self._route(method)
         except NodeError as exc:
+            self.close_connection = True  # a refused request's body may still be unread
             self._send_json(exc.status, {"error": exc.message})
         except BrokenPipeError:
             pass
@@ -600,8 +630,11 @@ class _Handler(BaseHTTPRequestHandler):
         q = parse_qs(url.query)
         seg = [s for s in path.split("/") if s]
         node = self._node
+        self._guard(method)
 
         if path == "/healthz" and method == "GET":
+            if node.token and not self._authorized():  # liveness only: the store stays private
+                return self._send_json(200, {"ok": True})
             return self._send_json(200, node.health())
         if len(seg) == 3 and seg[0] == "parts" and method == "GET":
             return self._part(seg[1], seg[2], q)
@@ -762,6 +795,16 @@ def _loopback(host: str) -> bool:
         return ipaddress.ip_address(host).is_loopback
     except ValueError:
         return False
+
+
+def _loopback_origin(origin: str) -> bool:
+    """An Origin header of a page served from this machine (any port)."""
+    try:
+        u = urlsplit(origin.strip())
+        host = u.hostname or ""
+    except ValueError:
+        return False
+    return u.scheme in ("http", "https") and _loopback(host.lower())
 
 
 class Server:

@@ -4,11 +4,13 @@ HTTP API (camelCase keys) so the docs at /docs#api apply unchanged."""
 from __future__ import annotations
 
 import os
+import re
 import time
 from typing import Any, Iterable
 
 import httpx
 
+from .deprecation import warn_if_deprecated
 from .errors import AuthError, WaitTimeout, WitanError, raise_for
 
 DEFAULT_BASE_URL = "http://localhost:3000"
@@ -19,6 +21,7 @@ MAX_PARTS = 1000
 
 UNIT_TERMINAL = frozenset({"published", "rejected"})
 CONTRIBUTION_TERMINAL = frozenset({"merged", "rejected"})
+SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
 class Witan:
@@ -50,11 +53,16 @@ class Witan:
         headers = {"user-agent": f"witan-sdk/{__version__}", "accept": "application/json"}
         if self.api_key:
             headers["authorization"] = f"Bearer {self.api_key}"
+        # Routes the server has scheduled for removal answer with a Deprecation header;
+        # the hook turns that into one WitanDeprecationWarning per route.
+        hooks = {"response": [warn_if_deprecated]}
+        self._transport = transport
         self._http = httpx.Client(base_url=self.base_url, headers=headers, timeout=timeout,
-                                  transport=transport)
+                                  transport=transport, event_hooks=hooks)
         # Bare client for presigned object-store URLs: the signature lives in the query
         # string and S3-compatible stores reject requests that also carry Authorization.
-        self._raw = httpx.Client(timeout=timeout, transport=transport, follow_redirects=True)
+        self._raw = httpx.Client(timeout=timeout, transport=transport, follow_redirects=True,
+                                 event_hooks=hooks)
         self.projects = Projects(self)
         self.community = Community(self)
 
@@ -97,15 +105,22 @@ class Witan:
         import hashlib
         from pathlib import Path
 
+        _check_part(part)  # the hash names the file: nothing else may reach the filesystem
+        limit = int(part["bytes"])
         target = Path(parts_dir) / f"{part['sha256']}.parquet"
         tmp = target.with_suffix(".parquet.part")
         digest = hashlib.sha256()
+        size = 0
         try:
             with self._raw.stream("GET", part["url"]) as response:
                 if response.status_code >= 400:
                     raise WitanError(f"part download failed: HTTP {response.status_code}", status=response.status_code)
                 with tmp.open("wb") as fh:
                     for chunk in response.iter_bytes():
+                        size += len(chunk)
+                        if size > limit:
+                            raise WitanError(f"part {part['sha256'][:12]}… is larger than the {limit} bytes its "
+                                             "manifest lists — download aborted")
                         digest.update(chunk)
                         fh.write(chunk)
             if digest.hexdigest() != part["sha256"]:
@@ -117,19 +132,22 @@ class Witan:
 
     # ---- trust: the origins whose manifest signatures this machine accepts --
 
-    def trust(self, *, force: bool = False) -> dict[str, Any]:
+    def trust(self, *, force: bool = False, origin: str | None = None) -> dict[str, Any]:
         """Pin the signing keys of the origin this client points at (trust on first use).
 
         From then on every manifest that origin signed verifies wherever it comes from — the
         origin, a node, a mirror of a mirror, a bundle. Keys are kept in the trust file (see
-        ``witan_sdk.trust``). Run again after the origin rotated its key: new keys are added only
-        when a pinned key endorsed them (``refused`` otherwise — ``force=True`` re-pins by hand,
-        after checking the key id with the operator), and keys it revoked stop counting.
+        ``witan_sdk.trust``). The keys document must be for ``base_url`` itself (same scheme,
+        host and port); a server reached through a proxy under another URL is pinned by naming
+        the origin it speaks for: ``origin="https://..."``. Run again after the origin rotated its
+        key: new keys are added only when a pinned key endorsed them (``refused`` otherwise —
+        ``force=True`` re-pins by hand, after checking the key id with the operator), and keys it
+        revoked stop counting, with every key pinned through them.
         Returns ``{origin, keys, added, refused, revoked, file, from}``."""
         from .trust import refresh
 
         data = self._request("GET", "/.well-known/witan-keys")
-        return {**refresh(data, force=force), "from": self.base_url}
+        return {**refresh(data, force=force, expect=origin or self.base_url), "from": self.base_url}
 
     def trusted(self) -> dict[str, Any]:
         """origin → pinned keys, from the trust file."""
@@ -240,12 +258,26 @@ class Witan:
         return self._request("GET", "/credits", auth=True)
 
     # ---- disputes --------------------------------------------------------
-    def dispute(self, transaction: str, reason: str) -> dict[str, Any]:
+    def dispute(self, transaction: str, reason: str, *, private_key: str | None = None) -> dict[str, Any]:
         """Dispute a settled x402 payment (a purchase or a credit pack) within 7 days.
         ``transaction`` is the settlement tx hash — ``buy*()`` return it under
-        ``x402["transaction"]``. No API key needed. After review the refund goes back
+        ``x402["transaction"]``. No API key needed: the wallet that paid proves it is the buyer by
+        signing a short statement here (key as for ``buy()``: argument or ``WITAN_WALLET_KEY``;
+        needs the x402 extra) — only the signature is sent. After review the refund goes back
         on-chain to the paying wallet; poll ``dispute_status()`` for the outcome."""
-        response = self._raw.post(f"{self.pay_url}/disputes", json={"transaction": transaction, "reason": reason})
+        from .payments import checked_time, dispute_statement, pay_origin, settlement_tx, sign_statement, wallet_address
+
+        tx = settlement_tx(transaction)
+        wallet = wallet_address(private_key)
+        origin = pay_origin(self.pay_url)
+        response = self._raw.get(f"{self.pay_url}/disputes/statement", params={"transaction": tx, "wallet": wallet})
+        if response.status_code >= 400:
+            raise_for(response)
+        t = checked_time(response.json(), lambda t: dispute_statement(tx, wallet, origin, t))
+        response = self._raw.post(f"{self.pay_url}/disputes", json={
+            "transaction": tx, "reason": reason, "wallet": wallet, "time": t,
+            "signature": sign_statement(dispute_statement(tx, wallet, origin, t), private_key),
+        })
         if response.status_code >= 400:
             raise_for(response)
         return response.json()
@@ -264,55 +296,66 @@ class Witan:
         if one was opened and ``disputeUntil`` while one can be. A purchase is anonymous, so the
         wallet proves it is the buyer: the pay service hands out a short statement and the wallet
         key (argument or ``WITAN_WALLET_KEY``, as for ``buy()``) signs it here — only the
-        signature is sent. Needs the x402 extra. Page with ``before=<next>``.
+        signature is sent. The statement is built here and must equal the one the service sent,
+        so the wallet signs nothing else. Needs the x402 extra. Page with ``before=<next>``.
         Returns ``{wallet, purchases, next}``."""
-        from .payments import sign_statement, wallet_address
+        from .payments import checked_time, pay_origin, purchase_statement, sign_statement, wallet_address
 
         wallet = wallet_address(private_key)
+        origin = pay_origin(self.pay_url)
         response = self._raw.get(f"{self.pay_url}/purchases/statement", params={"wallet": wallet})
         if response.status_code >= 400:
             raise_for(response)
-        issued = response.json()
+        t = checked_time(response.json(), lambda t: purchase_statement(wallet, origin, t))
         params: dict[str, Any] = {"limit": limit}
         if before:
             params["before"] = before
         response = self._raw.get(f"{self.pay_url}/purchases", params=params, headers={
             "x-witan-wallet": wallet,
-            "x-witan-time": str(issued["time"]),
-            "x-witan-signature": sign_statement(issued["statement"], private_key),
+            "x-witan-time": str(t),
+            "x-witan-signature": sign_statement(purchase_statement(wallet, origin, t), private_key),
         })
         if response.status_code >= 400:
             raise_for(response)
         return response.json()
 
     # ---- pay -------------------------------------------------------------
-    def buy(self, unit_id: str, *, private_key: str | None = None) -> dict[str, Any]:
+    def buy(self, unit_id: str, *, private_key: str | None = None, max_price: "str | float | None" = None,
+            networks: "str | list[str] | None" = None) -> dict[str, Any]:
         """Buy a unit with USDC over x402 — no API key needed, the payment is the auth.
 
         Requires ``pip install "witan-sdk[x402]"`` and a funded wallet key (argument or
         ``WITAN_WALLET_KEY``). Testnet preview: Base Sepolia. The key never leaves the
         process; it signs a transfer authorization that the facilitator settles.
+
+        Before signing, the 402 is held to this machine's limits: USDC on an allowed network
+        (``networks``, else ``WITAN_X402_NETWORKS``, else Base Sepolia only) at no more than
+        ``max_price`` USD (else ``WITAN_MAX_PRICE``, else 1.00) — anything else raises
+        ``PaymentRequiredError`` and nothing is signed.
         """
         from .payments import purchase
 
-        return purchase(self.pay_url, "/paid/knowledge", {"id": unit_id}, private_key)
+        return purchase(self.pay_url, "/paid/knowledge", {"id": unit_id}, private_key,
+                        max_price=max_price, networks=networks, transport=self._transport)
 
-    def buy_dataset(self, slug: str, *, version: int | None = None,
-                    private_key: str | None = None) -> dict[str, Any]:
+    def buy_dataset(self, slug: str, *, version: int | None = None, private_key: str | None = None,
+                    max_price: "str | float | None" = None, networks: "str | list[str] | None" = None) -> dict[str, Any]:
         """Buy one version of a paid dataset project over x402 (see ``buy()``)."""
         from .payments import purchase
 
-        return purchase(self.pay_url, "/paid/dataset", {"slug": slug, "version": version}, private_key)
+        return purchase(self.pay_url, "/paid/dataset", {"slug": slug, "version": version}, private_key,
+                        max_price=max_price, networks=networks, transport=self._transport)
 
-    def buy_credits(self, *, operator_id: str | None = None,
-                    private_key: str | None = None) -> dict[str, Any]:
+    def buy_credits(self, *, operator_id: str | None = None, private_key: str | None = None,
+                    max_price: "str | float | None" = None, networks: "str | list[str] | None" = None) -> dict[str, Any]:
         """Top up prepaid credits by one pack over x402 (see ``buy()``). The pack lands on
         ``operator_id`` — by default the operator of this API key, read from ``credits()``.
         Returns ``{operatorId, creditedMicro, balanceMicro, paid}``."""
         from .payments import purchase
 
         operator = operator_id or self.credits()["operatorId"]
-        return purchase(self.pay_url, "/paid/credits", {"operator": operator}, private_key)
+        return purchase(self.pay_url, "/paid/credits", {"operator": operator}, private_key,
+                        max_price=max_price, networks=networks, transport=self._transport)
 
 
 def _present(path: "os.PathLike[str] | str", size: int) -> bool:
@@ -320,6 +363,61 @@ def _present(path: "os.PathLike[str] | str", size: int) -> bool:
         return os.stat(path).st_size == int(size)
     except OSError:
         return False
+
+
+def _slug(slug: str) -> str:
+    """``slug`` when it is a project slug — it becomes a directory name."""
+    from .bundle import SLUG_RE
+
+    if not isinstance(slug, str) or not SLUG_RE.match(slug):
+        raise WitanError(f"not a project slug: {slug!r}")
+    return slug
+
+
+def _check_part(part: Any) -> None:
+    """A part a manifest lists, fit to become a file: a sha256 hex name and a byte count."""
+    sha = part.get("sha256") if isinstance(part, dict) else None
+    if not isinstance(sha, str) or not SHA256.fullmatch(sha):
+        raise WitanError(f"the manifest lists a part whose sha256 is not 64 hex digits: {str(sha)[:80]!r}")
+    size = part.get("bytes")
+    if not isinstance(size, int) or isinstance(size, bool) or size < 0:
+        raise WitanError(f"the manifest lists part {sha[:12]}… with an invalid size: {size!r}")
+
+
+def _matches(m: dict[str, Any], slug: str, version: int | None) -> None:
+    """A manifest stands only for what was asked: a signed manifest of another project or
+    version must not be accepted in its place."""
+    try:
+        got = int(m.get("version"))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        got = None
+    if m.get("project") != slug or got is None or (version is not None and got != version):
+        from .trust import SignatureError
+
+        raise SignatureError(f"asked for {slug} v{version if version is not None else 'latest'}, got a manifest of "
+                             f"{m.get('project')} v{m.get('version')} — refusing it")
+
+
+def _newest_on_disk(root: Any) -> int:
+    """The newest version of a project already in the store (0 when none)."""
+    try:
+        entries = list(root.iterdir())
+    except OSError:
+        return 0
+    found = [int(e.name[1:]) for e in entries
+             if re.fullmatch(r"v[1-9][0-9]*", e.name) and (e / "manifest.json").is_file()]
+    return max(found, default=0)
+
+
+def _not_older(root: Any, slug: str, version: int) -> None:
+    """``latest`` never goes back: a server offering an older version than the store holds is
+    replaying an old (validly signed) manifest."""
+    newest = _newest_on_disk(root)
+    if version < newest:
+        from .trust import SignatureError
+
+        raise SignatureError(f"{slug}: the latest version offered is v{version}, older than v{newest} already in "
+                             f"{root} — refusing to go back (ask for version={version} to get it anyway)")
 
 
 class Projects:
@@ -372,55 +470,77 @@ class Projects:
         Signatures: a manifest signed by a trusted origin is checked before any part is fetched
         (a mismatch raises ``SignatureError`` and nothing is written); the result is kept as
         ``verified`` in the local manifest. ``verify=True`` (or ``WITAN_VERIFY=1``) also refuses
-        unsigned manifests and origins not trusted yet — see ``Witan.trust``.
+        unsigned manifests and origins not trusted yet — see ``Witan.trust`` — and with it there is
+        no unsigned way in: no jsonl (asked for, or as the fallback) and no unsigned local copy.
+        The manifest must be the one asked for (``project`` is ``slug``, ``version`` the version
+        asked for), and "latest" is never older than a version already in ``out_dir``.
         """
-        if format == "jsonl":
-            return self._pull_jsonl(slug, out_dir, version=version, page=page)
-        if format != "parquet":
+        if format not in ("parquet", "jsonl"):
             raise ValueError("format must be 'parquet' or 'jsonl'")
         from pathlib import Path
 
         from .errors import ConflictError
-        from .trust import check
+        from .trust import SignatureError, check, require_default
 
+        _slug(slug)
+        must = verify if verify is not None else require_default()
+        if format == "jsonl":
+            if must:
+                raise SignatureError(f"{slug}: a jsonl pull carries no signature to verify — pull parquet, or without verify")
+            return self._pull_jsonl(slug, out_dir, version=version, page=page)
         root = Path(out_dir) / slug
         if version is not None:
             cached = self._cached(root, version)
             if cached is not None:
-                if verify or (verify is None and cached.get("signature")):
-                    cached["verified"] = check(cached, require=verify)["status"]  # offline: the signature is on disk
+                _matches(cached, slug, version)
+                if must or cached.get("signature"):
+                    cached["verified"] = check(cached, require=must)["status"]  # offline: the signature is on disk
                 return cached
         try:
             remote = self.manifest(slug, version=version)
         except ConflictError:
+            if must:
+                raise SignatureError(f"{slug} v{version or 'latest'} is not published as signed parts yet, so it cannot "
+                                     "be verified — try again later, or pull without verify") from None
             return self._pull_jsonl(slug, out_dir, version=version, page=page)
-        status = check(remote, require=verify)["status"]
+        status = check(remote, require=must)["status"]
+        _matches(remote, slug, version)
+        if version is None:
+            _not_older(root, slug, int(remote["version"]))
         return self._materialize(slug, root, remote, workers, verified=status)
 
     def pull_paid(self, slug: str, out_dir: "str | os.PathLike[str]" = "witan-data", *,
                   version: int | None = None, private_key: str | None = None,
-                  workers: int = 4, verify: bool | None = None) -> dict[str, Any]:
+                  workers: int = 4, verify: bool | None = None, max_price: "str | float | None" = None,
+                  networks: "str | list[str] | None" = None) -> dict[str, Any]:
         """Buy one version of a paid project over x402 and lay it out like ``pull``.
 
         The paid answer is the version manifest with 15-minute part URLs; the parts are
         downloaded and sha256-verified exactly as ``pull`` does, into the same
         ``out_dir/<slug>/parts`` layout. Needs the x402 extra and a wallet key (see
-        ``Witan.buy``). A version whose parts are already complete on disk is returned
-        from the local manifest without paying again.
+        ``Witan.buy``; ``max_price`` and ``networks`` bound what may be paid). A version whose
+        parts are already complete on disk is returned from the local manifest without paying
+        again. The returned manifest carries the settlement under ``x402`` (the proof a dispute
+        needs); the copy on disk does not.
         """
         from pathlib import Path
 
-        from .trust import check
+        from .trust import check, require_default
 
+        _slug(slug)
+        must = verify if verify is not None else require_default()
         root = Path(out_dir) / slug
         if version is not None:
             cached = self._cached(root, version)
             if cached is not None:
-                if verify or (verify is None and cached.get("signature")):
-                    cached["verified"] = check(cached, require=verify)["status"]
+                _matches(cached, slug, version)
+                if must or cached.get("signature"):
+                    cached["verified"] = check(cached, require=must)["status"]
                 return cached
-        remote = self._c.buy_dataset(slug, version=version, private_key=private_key)
-        status = check(remote, require=verify)["status"]
+        remote = self._c.buy_dataset(slug, version=version, private_key=private_key, max_price=max_price,
+                                     networks=networks)
+        status = check(remote, require=must)["status"]
+        _matches(remote, slug, version)
         return self._materialize(slug, root, remote, workers, verified=status)
 
     def _cached(self, root: Any, version: int) -> dict[str, Any] | None:
@@ -432,9 +552,14 @@ class Projects:
             return None
         m = _json.loads(local.read_text(encoding="utf-8"))
         parts_dir = root / "parts"
-        if m.get("format") == "parquet" and all(
-            _present(parts_dir / f"{p['sha256']}.parquet", p["bytes"]) for p in m["parts"]
-        ):
+        if m.get("format") != "parquet" or not isinstance(m.get("parts"), list):
+            return None
+        try:
+            for p in m["parts"]:
+                _check_part(p)
+        except WitanError:
+            return None  # not a manifest pull wrote: fetch the version again
+        if all(_present(parts_dir / f"{p['sha256']}.parquet", p["bytes"]) for p in m["parts"]):
             return m
         return None
 
@@ -447,6 +572,10 @@ class Projects:
         from concurrent.futures import ThreadPoolExecutor
 
         v = int(remote["version"])
+        if not isinstance(remote.get("parts"), list):
+            raise WitanError(f"the manifest of {slug} v{v} lists no parts")
+        for p in remote["parts"]:
+            _check_part(p)
         parts_dir = root / "parts"
         vdir = root / f"v{v}"
         parts_dir.mkdir(parents=True, exist_ok=True)
@@ -454,7 +583,8 @@ class Projects:
         todo = [p for p in remote["parts"] if not _present(parts_dir / f"{p['sha256']}.parquet", p["bytes"])]
         with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
             list(pool.map(lambda p: self._c._download_part(p, parts_dir), todo))
-        local_manifest: dict[str, Any] = {k: val for k, val in remote.items() if k not in ("urlExpiresAt", "paid")}
+        # the purchase receipt stays with the caller, not in the store (or bundles made from it)
+        local_manifest: dict[str, Any] = {k: val for k, val in remote.items() if k not in ("urlExpiresAt", "paid", "x402")}
         local_manifest["parts"] = [{k: val for k, val in p.items() if k != "url"} for p in remote["parts"]]
         local_manifest.update({
             "format": "parquet",
@@ -467,6 +597,8 @@ class Projects:
         if verified is not None:
             local_manifest["verified"] = verified
         (vdir / "manifest.json").write_text(_json.dumps(local_manifest, indent=2), encoding="utf-8")
+        if "x402" in remote:
+            return {**local_manifest, "x402": remote["x402"]}
         return local_manifest
 
     def _pull_jsonl(self, slug: str, out_dir: "str | os.PathLike[str]", *,
@@ -476,7 +608,10 @@ class Projects:
         from pathlib import Path
 
         first = self.data(slug, version=version, limit=page, offset=0)
+        _matches(first, slug, version)
         v = int(first["version"])
+        if version is None:
+            _not_older(Path(out_dir) / slug, slug, v)
         target = Path(out_dir) / slug / f"v{v}"
         manifest_path = target / "manifest.json"
         records_path = target / "records.jsonl"
@@ -634,25 +769,33 @@ class Projects:
         st = src.stat()
         state_path = src.with_name(src.name + ".witan-upload.json")
         upload_path = src.with_name(src.name + ".witan-upload.gz") if compress else src
-        if compress and not upload_path.exists():
-            with src.open("rb") as fin, gzip.open(upload_path, "wb", compresslevel=6) as fout:
-                shutil.copyfileobj(fin, fout, 1024 * 1024)
+        saved: Any = None
+        if state_path.exists():
+            try:
+                saved = _json.loads(state_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                saved = None
+        source = {"slug": slug, "size": st.st_size, "mtime": st.st_mtime_ns, "compress": compress}
+        # A gzip beside the file is reused only as the one an interrupted push of these same bytes
+        # left; otherwise (the file changed, or no progress was kept) it is rebuilt, whole or not at all.
+        if not (isinstance(saved, dict) and all(saved.get(k) == v for k, v in source.items()) and upload_path.exists()):
+            saved = None
+            if compress:
+                tmp = upload_path.with_name(upload_path.name + ".tmp")
+                with src.open("rb") as fin, gzip.open(tmp, "wb", compresslevel=6) as fout:
+                    shutil.copyfileobj(fin, fout, 1024 * 1024)
+                os.replace(tmp, upload_path)
         size = upload_path.stat().st_size
         part_size = max(int(part_size), MIN_PART_SIZE)
         parts = max(1, math.ceil(size / part_size))
         if parts > MAX_PARTS:
             part_size = math.ceil(size / MAX_PARTS)
             parts = math.ceil(size / part_size)
-        fingerprint = {"slug": slug, "size": st.st_size, "mtime": int(st.st_mtime), "compress": compress, "partSize": part_size}
+        fingerprint = {**source, "partSize": part_size}
 
         state: dict[str, Any] | None = None
-        if state_path.exists():
-            try:
-                saved = _json.loads(state_path.read_text(encoding="utf-8"))
-                if all(saved.get(k) == v for k, v in fingerprint.items()):
-                    state = saved
-            except (OSError, ValueError):
-                state = None
+        if saved is not None and all(saved.get(k) == v for k, v in fingerprint.items()):
+            state = saved
         if state is None:
             init = self._c._request("POST", f"/projects/{slug}/uploads", json={
                 "bytes": size, "parts": parts,
@@ -724,7 +867,7 @@ class Projects:
         from . import __version__
         from .bundle import PROJECT_KEYS, write_bundle
 
-        root = Path(cache_dir) / slug
+        root = Path(cache_dir) / _slug(slug)
         project_file = root / "project.json"
         m = self._cached(root, version) if version is not None else None
         offline = m is not None and project_file.is_file()
@@ -761,7 +904,7 @@ class Projects:
         import json as _json
         from pathlib import Path
 
-        from .bundle import BundleError, local_manifest, peek_header, read_bundle
+        from .bundle import PROJECT_KEYS, BundleError, local_manifest, peek_header, read_bundle
         from .trust import check as check_signature
 
         src = Path(path)
@@ -784,13 +927,15 @@ class Projects:
         kept = local_manifest(b["manifest"], b["header"], src.name, b["written"])
         kept["verified"] = signed["status"]
         (vdir / "manifest.json").write_text(_json.dumps(kept, indent=2), encoding="utf-8")
-        (root / "project.json").write_text(_json.dumps(b["project"], indent=2, ensure_ascii=False), encoding="utf-8")
+        # only what describes the project: a bundle must not mark itself a node's own (writable) project
+        project = {k: v for k, v in b["project"].items() if k in PROJECT_KEYS}
+        (root / "project.json").write_text(_json.dumps(project, indent=2, ensure_ascii=False), encoding="utf-8")
         return {**b["header"], "out": str(root), "written": b["written"], "checked": True,
                 "signature": signed["status"], "signedBy": signed["origin"]}
 
     def push_bundle(self, path: "str | os.PathLike[str]", slug: str, *, source_declaration: str | None = None,
                     out_dir: "str | os.PathLike[str]" = "witan-data", allow_paid: bool = False, wait: bool = True,
-                    workers: int = 4, timeout: float = 900.0) -> dict[str, Any]:
+                    workers: int = 4, timeout: float = 900.0, verify: bool | None = None) -> dict[str, Any]:
         """Contribute a bundle's records to project ``slug`` on this origin (it must exist).
 
         The bundle is verified and loaded into ``out_dir`` first; its records are then read
@@ -798,8 +943,8 @@ class Projects:
         they pass the target's gates like any batch: schema, personal data, duplicates (a
         bundle pushed where its records already are is rejected as all duplicates). A bundle
         of a paid project is refused unless ``allow_paid=True`` — republishing bought data
-        needs the maintainer's rights. Returns the contribution (merged or rejected when
-        ``wait``).
+        needs the maintainer's rights. ``verify`` applies to the bundle's signature as in
+        ``load``. Returns the contribution (merged or rejected when ``wait``).
         """
         import json as _json
         import os as _os
@@ -812,7 +957,7 @@ class Projects:
         if head.get("access") == "paid" and not allow_paid:
             raise WitanError(f"{Path(path).name} is a bundle of a paid project (license {head.get('license')}); "
                              "republishing it needs the maintainer's rights — pass allow_paid=True (--allow-paid) if you hold them")
-        loaded = self.load(path, out_dir)
+        loaded = self.load(path, out_dir, verify=verify)
         root = Path(out_dir) / loaded["project"]
         manifest = _json.loads((root / f"v{loaded['version']}" / "manifest.json").read_text(encoding="utf-8"))
         files = [root / "parts" / f"{p['sha256']}.parquet" for p in manifest["parts"]]
@@ -846,7 +991,8 @@ class Projects:
         The version is bundled offline from ``store`` and pushed like ``push_bundle``: the
         records pass the origin's gates, and records already there are dropped as duplicates,
         so promoting again sends only what is new (all-duplicate → rejected by the dedup
-        gate, meaning nothing new). Needs the ``query`` extra.
+        gate, meaning nothing new). A node's own versions carry no origin signature, and none is
+        asked for here (``WITAN_VERIFY`` is about copies of origin data). Needs the ``query`` extra.
         """
         import tempfile
         from pathlib import Path
@@ -868,7 +1014,7 @@ class Projects:
                 f"Promoted from a WITAN node: local project {slug} v{v} ({saved['records']} records)."
             )
             result = self.push_bundle(bundle, target, source_declaration=declaration, out_dir=Path(tmp) / "load",
-                                      wait=wait, workers=workers, timeout=timeout)
+                                      wait=wait, workers=workers, timeout=timeout, verify=False)
         return {**result, "promoted": {"from": slug, "version": v, "to": target, "records": saved["records"]}}
 
     def comments(self, slug: str) -> list[dict[str, Any]]:

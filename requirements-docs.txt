@@ -1,0 +1,6 @@
+# The documentation site (mkdocs.yml). Pinned so every release's docs build the same way.
+mkdocs==1.6.1
+mkdocs-material==9.6.14
+mkdocstrings==0.29.1
+mkdocstrings-python==1.16.12
+mike==2.1.3

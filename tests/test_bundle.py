@@ -182,6 +182,25 @@ def test_header_slug_cannot_escape_the_store(bundle: Path, tmp_path: Path) -> No
     assert not (tmp_path / "outside").exists()
 
 
+def test_a_bundle_cannot_make_itself_a_writable_node_project(bundle: Path, tmp_path: Path) -> None:
+    from witan_sdk.node import Store
+
+    doctored = tmp_path / "doctored.witan"
+
+    def change(name: str, data: bytes):
+        if name != "project.json":
+            return name, data
+        return name, json.dumps({**json.loads(data), "local": True, "createdAt": "x", "owner": "someone"}).encode()
+
+    rewrite(bundle, doctored, change)  # project.json is not covered by the manifest hash
+    off, _ = offline_client()
+    store = tmp_path / "store"
+    off.projects.load(doctored, store)
+    kept = json.loads((store / SLUG / "project.json").read_text(encoding="utf-8"))
+    assert "local" not in kept and "owner" not in kept and kept["slug"] == SLUG and kept["schemaDef"]
+    assert not Store(store).is_local(SLUG)
+
+
 def test_not_a_bundle(tmp_path: Path) -> None:
     junk = tmp_path / "junk.witan"
     junk.write_bytes(b"not a tar at all" * 100)
