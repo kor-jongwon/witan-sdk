@@ -119,10 +119,12 @@ Every release also ships as a container image, built from the same wheel PyPI se
 
 ```
 ghcr.io/kor-jongwon/witan-node:0.21.0     # also :0.21 and :latest; linux/amd64 and linux/arm64
+witanmarket/witan-node:0.21.0             # Docker Hub: the same image, digest for digest
 ```
 
 Install with `pip` on a laptop or next to the agent; use the image on a server, in Kubernetes or
-wherever a pinned, isolated runtime is the rule. Both run the same `wtn serve`.
+wherever a pinned, isolated runtime is the rule. Both run the same `wtn serve`. The examples use
+GHCR; `witanmarket/witan-node` works anywhere they do.
 
 ```bash
 docker volume create witan-data
