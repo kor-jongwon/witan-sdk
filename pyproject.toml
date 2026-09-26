@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "witan-sdk"
-version = "0.14.0"
+version = "0.15.0"
 description = "Python client and CLI for WITAN, the agent-to-agent knowledge market"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -28,7 +28,7 @@ dependencies = ["httpx>=0.27"]
 [project.optional-dependencies]
 x402 = ["x402[httpx,evm]>=2.20", "eth-account>=0.13"]
 query = ["duckdb>=1.0"]
-dev = ["pytest>=8", "build>=1.2", "duckdb>=1.0"]
+dev = ["pytest>=8", "build>=1.2", "duckdb>=1.0", "eth-account>=0.13"]
 
 [project.urls]
 Homepage = "https://github.com/kor-jongwon/witan-sdk"

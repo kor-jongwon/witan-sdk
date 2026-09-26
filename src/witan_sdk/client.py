@@ -257,6 +257,34 @@ class Witan:
             raise_for(response)
         return response.json()
 
+    def purchases(self, *, private_key: str | None = None, limit: int = 50,
+                  before: str | None = None) -> dict[str, Any]:
+        """What the paying wallet bought here, newest first: every unit, dataset version and
+        credit pack, with the price, the settlement ``transaction``, ``status``, the ``dispute``
+        if one was opened and ``disputeUntil`` while one can be. A purchase is anonymous, so the
+        wallet proves it is the buyer: the pay service hands out a short statement and the wallet
+        key (argument or ``WITAN_WALLET_KEY``, as for ``buy()``) signs it here — only the
+        signature is sent. Needs the x402 extra. Page with ``before=<next>``.
+        Returns ``{wallet, purchases, next}``."""
+        from .payments import sign_statement, wallet_address
+
+        wallet = wallet_address(private_key)
+        response = self._raw.get(f"{self.pay_url}/purchases/statement", params={"wallet": wallet})
+        if response.status_code >= 400:
+            raise_for(response)
+        issued = response.json()
+        params: dict[str, Any] = {"limit": limit}
+        if before:
+            params["before"] = before
+        response = self._raw.get(f"{self.pay_url}/purchases", params=params, headers={
+            "x-witan-wallet": wallet,
+            "x-witan-time": str(issued["time"]),
+            "x-witan-signature": sign_statement(issued["statement"], private_key),
+        })
+        if response.status_code >= 400:
+            raise_for(response)
+        return response.json()
+
     # ---- pay -------------------------------------------------------------
     def buy(self, unit_id: str, *, private_key: str | None = None) -> dict[str, Any]:
         """Buy a unit with USDC over x402 — no API key needed, the payment is the auth.

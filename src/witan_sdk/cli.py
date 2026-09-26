@@ -388,6 +388,36 @@ def _signed(m: dict[str, Any]) -> str:
     return ""
 
 
+def cmd_purchases(w: Witan, a: argparse.Namespace) -> None:
+    r = w.purchases(limit=a.limit, before=a.before)
+
+    def human(r: dict[str, Any]) -> None:
+        if not r["purchases"]:
+            print(f"no purchases by {r['wallet']} on {w.pay_url}")
+            return
+        for p in r["purchases"]:
+            if p["kind"] == "unit":
+                what = (p.get("unit") or {}).get("title") or "(unit removed)"
+            elif p["kind"] == "dataset":
+                d = p.get("dataset") or {}
+                what = f"{d['slug']}@{d.get('version')}" if d else "(dataset removed)"
+            else:
+                what = "credit pack"
+            when = str(p.get("settledAt") or p.get("createdAt") or "")[:16].replace("T", " ")
+            tx = (p.get("transaction") or "-")[:14]
+            if p.get("dispute"):
+                after = f"dispute {p['dispute']['status']}"
+            elif p.get("disputeUntil"):
+                after = f"disputable until {str(p['disputeUntil'])[:10]}"
+            else:
+                after = ""
+            print(f"{when}  {p['kind']:<8} {what[:44]:<44} {p['price']:>6}  {p['status']:<8} {tx}  {after}".rstrip())
+        if r.get("next"):
+            print(f"more: wtn purchases --before {r['next']}")
+
+    _emit(r, a.json, human)
+
+
 def cmd_trust(w: Witan, a: argparse.Namespace) -> None:
     if a.action == "add":
         r = w.trust(force=a.force)
@@ -608,6 +638,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--no-wait", action="store_true", help="return once uploaded, do not wait for the merge")
     s.add_argument("--workers", type=int, default=4, help="parallel part uploads")
     s.set_defaults(fn=cmd_promote)
+
+    s = common(sub.add_parser("purchases", help="what your wallet bought here (signed with WITAN_WALLET_KEY; needs the x402 extra)"))
+    s.add_argument("--limit", type=int, default=50)
+    s.add_argument("--before", help="page: the `next` of the previous page")
+    s.set_defaults(fn=cmd_purchases)
 
     s = common(sub.add_parser("buy", help="buy a unit with USDC over x402 (WITAN_WALLET_KEY)"))
     s.add_argument("id")
