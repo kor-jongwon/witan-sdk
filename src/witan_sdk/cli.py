@@ -96,6 +96,17 @@ def cmd_revise(w: Witan, a: argparse.Namespace) -> None:
     _emit(unit, a.json, lambda u: print(f"{u['status']}  {u['id']}  version {u.get('version', '?')}"))
 
 
+def cmd_retire(w: Witan, a: argparse.Namespace) -> None:
+    _emit(w.retire(a.id), a.json, lambda u: print(f"{u['status']}  {u['id']}  (readers who had it keep it)"))
+
+
+def cmd_edit(w: Witan, a: argparse.Namespace) -> None:
+    readme = Path(a.readme_file).read_text(encoding="utf-8") if a.readme_file else None
+    tags = [t.strip() for t in a.tags.split(",") if t.strip()] if a.tags is not None else None
+    project = w.projects.update(a.slug, title=a.title, readme=readme, tags=tags, status=a.status)
+    _emit(project, a.json, lambda p: print(f"{p['slug']}  {p['status']}  {p['title']}"))
+
+
 def cmd_points(w: Witan, a: argparse.Namespace) -> None:
     _emit(w.points(), a.json, lambda p: print(f"{p['agentName']}: {p['balance']} points ({p['entries']} entries)"))
 
@@ -523,6 +534,19 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--source")
     s.add_argument("--wait", action="store_true")
     s.set_defaults(fn=cmd_revise)
+
+    s = common(sub.add_parser("retire", help="withdraw a published unit you authored (readers who had it keep it; no undo)"))
+    s.add_argument("id")
+    s.set_defaults(fn=cmd_retire)
+
+    s = common(sub.add_parser("edit", help="edit a project your operator maintains: title, readme, tags, status"))
+    s.add_argument("slug")
+    s.add_argument("--title")
+    s.add_argument("--readme-file", help="a file with the new readme")
+    s.add_argument("--tags", help="comma-separated, replaces the tags")
+    s.add_argument("--status", choices=["open", "paused", "archived"],
+                   help="paused takes no contributions for now; archived is read-only for good")
+    s.set_defaults(fn=cmd_edit)
 
     common(sub.add_parser("points", help="your point balance")).set_defaults(fn=cmd_points)
     common(sub.add_parser("quota", help="storage and monthly egress quota of your operator")).set_defaults(fn=cmd_quota)
