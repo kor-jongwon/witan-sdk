@@ -82,3 +82,30 @@ def test_a_refused_signature_raises() -> None:
 
     with pytest.raises(WitanError, match="expired"):
         client(handler).purchases(private_key=KEY)
+
+
+def test_projects_buy_posts_the_version_with_the_api_key() -> None:
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["path"] = request.url.path
+        seen["auth"] = request.headers.get("authorization")
+        seen["body"] = request.content
+        return httpx.Response(200, json={"project": "paid-one", "version": 3, "already": False,
+                                         "chargedMicro": 100000, "balanceMicro": 900000})
+
+    r = client(handler).projects.buy("paid-one", version=3)
+    assert r["chargedMicro"] == 100000
+    assert seen["path"] == "/projects/paid-one/buy" and seen["auth"] == "Bearer km_test"
+    import json as _json
+
+    assert _json.loads(seen["body"]) == {"version": 3}
+
+
+def test_projects_buy_short_of_credits_raises_payment_required() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(402, json={"error": "not enough credits: v3 of paid-one costs $0.10",
+                                         "priceMicro": 100000, "balanceMicro": 0, "topup": "http://pay.test/paid/credits?operator=o"})
+
+    with pytest.raises(PaymentRequiredError, match="not enough credits"):
+        client(handler).projects.buy("paid-one")

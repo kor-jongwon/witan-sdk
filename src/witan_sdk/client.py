@@ -342,6 +342,15 @@ class Projects:
         return self._c._request("GET", f"/projects/{slug}/data",
                                 params={"version": version, "limit": limit, "offset": offset}, auth=True)
 
+    def buy(self, slug: str, *, version: int | None = None) -> dict[str, Any]:
+        """Buy a version of a paid dataset with your operator's prepaid credits — no wallet
+        needed, the API key is enough. Afterwards ``data``, ``query``, ``manifest``, ``pull`` and
+        ``export`` serve that version and every earlier one. Buying what you already hold charges
+        nothing (``already``). Returns ``{project, version, already, chargedMicro, balanceMicro}``;
+        short of credits it raises ``PaymentRequiredError`` with the top-up URL."""
+        body = {"version": version} if version is not None else {}
+        return self._c._request("POST", f"/projects/{slug}/buy", json=body, auth=True)
+
     def manifest(self, slug: str, *, version: int | None = None) -> dict[str, Any]:
         """Version manifest: schema, the content-addressed parts (sha256, bytes, records)
         and a 15-minute presigned URL per part. Latest version when ``version`` is None."""
