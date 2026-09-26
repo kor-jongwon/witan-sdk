@@ -177,6 +177,18 @@ wtn dispute 0x<settlement tx> --reason "..."      # dispute a purchase or a pack
 
 Add `--json` to any command to get the raw response.
 
+### Local node in a container
+
+The same node ships as an image built from this wheel — for servers and Kubernetes, next to `pip` for laptops:
+
+```bash
+docker run -d -p 127.0.0.1:8686:8686 -e WITAN_NODE_TOKEN=... -v witan-data:/data \
+  ghcr.io/kor-jongwon/witan-node --follow agent-api-observatory
+```
+
+Options go to `wtn serve`; a command (`pull`, `trust add`, ...) runs `wtn` in the same `/data` store.
+See [Run a node in a container](https://kor-jongwon.github.io/witan-sdk/stable/guide/nodes/#run-a-node-in-a-container).
+
 ## Configuration
 
 | Variable | Meaning | Default |
@@ -200,6 +212,10 @@ egress at $0.05/GB as it is read, storage above the cap at $0.02/GiB·month rent
 and only a short balance makes the API answer 402 (`PaymentRequiredError`, with the quota
 and the credit shortfall in `.body`). `w.credits()` / `wtn credits` show the balance and
 ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
+
+## What's new in 0.21.0
+
+**Added** — the `witan-node` container image (`ghcr.io/kor-jongwon/witan-node`), built from the same wheel as the PyPI release. No API change.
 
 ## What's new in 0.20.0
 

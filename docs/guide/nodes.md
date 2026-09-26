@@ -112,6 +112,84 @@ export WITAN_NODE_TOKEN=...          # a long random string
 wtn serve --host 0.0.0.0 --read-only
 ```
 
+## Run a node in a container
+
+Every release also ships as a container image, built from the same wheel PyPI serves (with the
+`query` extra) and signed with a build provenance:
+
+```
+ghcr.io/kor-jongwon/witan-node:0.21.0     # also :0.21 and :latest; linux/amd64 and linux/arm64
+```
+
+Install with `pip` on a laptop or next to the agent; use the image on a server, in Kubernetes or
+wherever a pinned, isolated runtime is the rule. Both run the same `wtn serve`.
+
+```bash
+docker volume create witan-data
+# fill the store: any wtn command runs in /data, the directory serve reads
+docker run --rm -v witan-data:/data -e WITAN_BASE_URL=https://witan.example -e WITAN_API_KEY=km_... \
+  ghcr.io/kor-jongwon/witan-node pull api-latency-benchmarks@12
+# serve it
+docker run -d --name witan-node --restart unless-stopped \
+  -p 127.0.0.1:8686:8686 -e WITAN_NODE_TOKEN="$(openssl rand -hex 24)" -v witan-data:/data \
+  ghcr.io/kor-jongwon/witan-node --read-only
+```
+
+What the image does with its arguments:
+
+| Arguments | Runs |
+|---|---|
+| none, or options first (`--follow ...`, `--read-only`) | `wtn serve --store /data/witan-data --host 0.0.0.0 --port $WITAN_NODE_PORT` plus the options |
+| a command (`pull`, `load`, `trust add`, `query`, ...) | `wtn <command> ...` in `/data` |
+| `--version` | `wtn --version` |
+
+| Variable | Meaning | Default |
+|---|---|---|
+| `WITAN_NODE_TOKEN` | Required to serve: the node listens on every interface inside the container, so it refuses to start without one. It stays in the environment, not on the command line. | — |
+| `WITAN_NODE_PORT` | The port inside the container (and the one the health check probes). | `8686` |
+| `WITAN_BASE_URL`, `WITAN_API_KEY` | The origin and agent key for `pull` and `--follow`. | — |
+| `WITAN_TRUST_FILE` | Pinned signing keys, kept in the volume. | `/data/trust.json` |
+
+The volume holds the store (`/data/witan-data`) and the pinned keys (`/data/trust.json`), so
+they outlive the container. The node runs as uid 10001, not root, works with a read-only root
+filesystem (`--read-only --tmpfs /tmp`), and the image's health check probes `GET /healthz`.
+Publish the port on `127.0.0.1` unless other machines should reach the node.
+
+Follow the origin with signatures checked:
+
+```bash
+docker run --rm -v witan-data:/data -e WITAN_BASE_URL=https://witan.example ghcr.io/kor-jongwon/witan-node trust add
+docker run -d --name witan-node -p 127.0.0.1:8686:8686 -v witan-data:/data \
+  -e WITAN_NODE_TOKEN=... -e WITAN_BASE_URL=https://witan.example -e WITAN_API_KEY=km_... \
+  ghcr.io/kor-jongwon/witan-node --follow api-latency-benchmarks --interval 300 --verify
+```
+
+With Compose:
+
+```yaml
+services:
+  witan-node:
+    image: ghcr.io/kor-jongwon/witan-node:0.21
+    command: ["--follow", "api-latency-benchmarks", "--verify"]
+    environment:
+      WITAN_NODE_TOKEN: ${WITAN_NODE_TOKEN:?set a token}
+      WITAN_BASE_URL: https://witan.example
+      WITAN_API_KEY: ${WITAN_API_KEY}
+    ports: ["127.0.0.1:8686:8686"]
+    volumes: ["witan-data:/data"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    restart: unless-stopped
+volumes:
+  witan-data:
+```
+
+Check where an image came from before you run it:
+
+```bash
+gh attestation verify oci://ghcr.io/kor-jongwon/witan-node:0.21.0 --owner kor-jongwon
+```
+
 ## Writes on a node
 
 Copies of origin projects (pulled, loaded or followed) are read-only on a node; a write to one
