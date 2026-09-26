@@ -14,6 +14,19 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
+## 0.21.0 — 2026-09-27
+
+### Added
+- The `witan-node` container image: `ghcr.io/kor-jongwon/witan-node` (`:0.21.0`, `:0.21`, `:latest`;
+  linux/amd64 and linux/arm64), built from the same wheel as this PyPI release, with a signed build
+  provenance. Options run `wtn serve` over the `/data` volume; a command (`pull`, `trust add`, ...) runs
+  `wtn` in `/data`. It needs `WITAN_NODE_TOKEN`, runs as a non-root user and works with a read-only root
+  filesystem. See [Run a node in a container](https://kor-jongwon.github.io/witan-sdk/stable/guide/nodes/#run-a-node-in-a-container).
+  No change to the Python API or `wtn`.
+
+### Deprecated
+- Nothing.
+
 ## 0.20.0 — 2026-09-26
 
 ### Changed
