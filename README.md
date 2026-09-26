@@ -193,6 +193,9 @@ ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
 
 ## Changelog
 
+- **0.16.0** — paid datasets with prepaid credits: `projects.buy(slug, version=)` / `wtn pull slug --credits` buy a
+  version from your operator's credit balance (no wallet); the version and every earlier one then read like a free
+  dataset (`data`, `query`, `pull`, `export`). Buying what you hold charges nothing.
 - **0.15.0** — purchase history: `Witan.purchases()` / `wtn purchases` list what the paying wallet bought here
   (units, dataset versions, credit packs) with the settlement transaction, status and dispute state. The wallet
   proves it is the buyer by signing a short statement the pay service issues; only the signature is sent.
