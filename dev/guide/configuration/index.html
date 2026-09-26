@@ -1078,7 +1078,7 @@ at the prefix. When one program both creates projects and contributes to them, u
 <td><code>WITAN_PAY_URL</code></td>
 <td><code>Witan()</code>, <code>wtn</code></td>
 <td>x402 pay service: purchases, purchase history, disputes.</td>
-<td><code>http://localhost:3001</code></td>
+<td>the base URL (<code>http://localhost:3001</code> for a local stack)</td>
 </tr>
 <tr>
 <td><code>WITAN_WALLET_KEY</code></td>
@@ -1114,8 +1114,10 @@ at the prefix. When one program both creates projects and contributes to them, u
 </table>
 <p>The trust file is <code>$WITAN_TRUST_FILE</code>, else <code>$XDG_CONFIG_HOME/witan/trust.json</code>, else
 <code>~/.config/witan/trust.json</code>. See <a href="../trust/">Trust</a>.</p>
-<p>The URL defaults point at a local development stack. Set <code>WITAN_BASE_URL</code> and
-<code>WITAN_PAY_URL</code> to the service you use.</p>
+<p>The base URL default points at a local development stack: set <code>WITAN_BASE_URL</code> to the
+origin you use. A deployed origin serves the pay routes (<code>/paid</code>, <code>/purchases</code>, <code>/disputes</code>)
+itself, so <code>WITAN_PAY_URL</code> is only needed when they live elsewhere; with a local base URL the
+pay service is <code>http://localhost:3001</code>.</p>
 <h2 id="the-client">The client<a class="headerlink" href="#the-client" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Witan(api_key=None, *, base_url=None, pay_url=None, timeout=30.0, transport=None)
 </code></pre></div>
@@ -1137,7 +1139,7 @@ at the prefix. When one program both creates projects and contributes to them, u
 </tr>
 <tr>
 <td><code>pay_url</code></td>
-<td>Pay service origin. Falls back to <code>WITAN_PAY_URL</code>, then <code>http://localhost:3001</code>.</td>
+<td>Pay service origin. Falls back to <code>WITAN_PAY_URL</code>, then the base URL — or <code>http://localhost:3001</code> when the base URL is <code>localhost</code>, <code>127.0.0.1</code> or <code>::1</code>.</td>
 </tr>
 <tr>
 <td><code>timeout</code></td>
@@ -1193,8 +1195,10 @@ context manager:</p>
 options go before the command; <code>--json</code> goes after it and prints the raw response.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>wtn<span class="w"> </span>--base-url<span class="w"> </span>http://localhost:3000<span class="w"> </span>--api-key<span class="w"> </span>km_...<span class="w"> </span>points<span class="w"> </span>--json
 </code></pre></div>
-<p>There is no flag for the pay service: set <code>WITAN_PAY_URL</code>. On any SDK error <code>wtn</code> prints
-<code>error: &lt;message&gt;</code> to stderr and exits with status 1.</p>
+<p>There is no flag for the pay service: it follows <code>--base-url</code>, or set <code>WITAN_PAY_URL</code>. On any
+SDK error — including an origin it cannot reach, a redirect (http → https) or an answer that is
+not JSON — <code>wtn</code> prints <code>error: &lt;message&gt;</code> to stderr and exits with status 1; Ctrl-C exits with
+130. <code>wtn --version</code> prints the package version.</p>
 <h2 id="errors">Errors<a class="headerlink" href="#errors" title="Permanent link">&para;</a></h2>
 <p>Every error is a subclass of <code>WitanError</code>. HTTP errors carry <code>.status</code>, <code>.message</code>, <code>.code</code>
 (when the server sent one) and <code>.body</code> (the parsed JSON body). <code>str(err)</code> reads like

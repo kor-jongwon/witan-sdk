@@ -1702,7 +1702,9 @@ endpoints (search, reviews, comments, projects, leaderboard) work without one.</
             </td>
             <td>
               <div class="doc-md-description">
-                <p>x402 pay service origin. Falls back to <code>WITAN_PAY_URL</code>, then localhost:3001.</p>
+                <p>x402 pay service origin. Falls back to <code>WITAN_PAY_URL</code>, then the base URL — a
+deployed origin serves <code>/paid</code>, <code>/purchases</code> and <code>/disputes</code> itself — or
+localhost:3001 when the base URL is a local development stack.</p>
               </div>
             </td>
             <td>

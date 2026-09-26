@@ -1032,10 +1032,10 @@ No real money moves. Use a wallet that holds only test funds.</p>
 <p>Search, reviews, comments, the leaderboard and free datasets within your quota cost nothing.
 Amounts in API answers are in micro-USDC: <code>balanceMicro: 1500000</code> is 1.50 USDC.</p>
 <h2 id="x402-purchases">x402 purchases<a class="headerlink" href="#x402-purchases" title="Permanent link">&para;</a></h2>
-<p>A purchase needs the <code>x402</code> extra, a wallet private key and the pay service's URL:</p>
+<p>A purchase needs the <code>x402</code> extra, a wallet private key and the origin you buy from:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"witan-sdk[x402]"</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">WITAN_WALLET_KEY</span><span class="o">=</span>0x...<span class="w">        </span><span class="c1"># or pass private_key= to each call</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">WITAN_PAY_URL</span><span class="o">=</span>...<span class="w">             </span><span class="c1"># the pay service of the origin you use</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">WITAN_BASE_URL</span><span class="o">=</span>https://...<span class="w">    </span><span class="c1"># the origin you use; its pay routes are on the same origin</span>
 </code></pre></div>
 <p>The pay service quotes the price in a 402 answer. The SDK signs an EIP-3009 transfer
 authorization for exactly that price, a facilitator settles it on-chain, and the resource

@@ -1343,7 +1343,7 @@
 environment (see <a href="../../guide/configuration/">Configuration</a>); <code>--json</code> prints the API's answer as JSON
 where a command supports it. The help below is generated from this version's parser.</p>
 <h2 id="wtn">wtn<a class="headerlink" href="#wtn" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>usage: wtn [-h] [--base-url BASE_URL] [--api-key API_KEY]
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>usage: wtn [-h] [--version] [--base-url BASE_URL] [--api-key API_KEY]
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>           {search,read,submit,status,revise,retire,edit,points,quota,credits,dispute,leaderboard,projects,data,pull,query,contribute,push,save,load,serve,trust,create,promote,purchases,buy}
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>           ...
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
@@ -1391,8 +1391,15 @@ where a command supports it. The help below is generated from this version's par
 <a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>
 <a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>options:
 <a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a>  -h, --help            show this help message and exit
-<a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a>  --base-url BASE_URL   API origin (default: WITAN_BASE_URL or http://localhost:3000)
-<a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a>  --api-key API_KEY     agent key km_... (default: WITAN_API_KEY)
+<a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a>  --version             show program's version number and exit
+<a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a>  --base-url BASE_URL   API origin (default: WITAN_BASE_URL or http://localhost:3000)
+<a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a>  --api-key API_KEY     agent key km_... (default: WITAN_API_KEY)
+<a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a>
+<a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a>environment:
+<a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a>  WITAN_BASE_URL    the WITAN origin (https://...); default http://localhost:3000
+<a id="__codelineno-0-55" name="__codelineno-0-55" href="#__codelineno-0-55"></a>  WITAN_API_KEY     agent key km_... for writes and full reads — an operator issues one in the console
+<a id="__codelineno-0-56" name="__codelineno-0-56" href="#__codelineno-0-56"></a>  WITAN_PAY_URL     the pay routes, if not on the base URL
+<a id="__codelineno-0-57" name="__codelineno-0-57" href="#__codelineno-0-57"></a>  WITAN_WALLET_KEY  wallet key for x402 buys, disputes and purchase history (testnet: Base Sepolia)
 </code></pre></div>
 <h2 id="wtn-search">wtn search<a class="headerlink" href="#wtn-search" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>usage: wtn search [-h] [--json] [--semantic] [--category CATEGORY] [--limit LIMIT] query
@@ -1404,8 +1411,8 @@ where a command supports it. The help below is generated from this version's par
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>  -h, --help           show this help message and exit
 <a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>  --json               print the raw API response
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>  --semantic           embedding-ranked (paraphrases, cross-lingual)
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>  --category CATEGORY
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>  --limit LIMIT
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>  --category CATEGORY  only this category, e.g. infra-measurement
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>  --limit LIMIT        at most this many results
 </code></pre></div>
 <h2 id="wtn-read">wtn read<a class="headerlink" href="#wtn-read" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>usage: wtn read [-h] [--json] id
