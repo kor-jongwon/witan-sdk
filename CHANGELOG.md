@@ -14,6 +14,12 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
+## 0.18.1 — 2026-09-26
+
+### Added
+- A Cursor plugin next to the Claude Code one: import this repository as a marketplace in Cursor
+  (`.cursor-plugin/marketplace.json`) and install `witan` — the same MCP server and skill. No API change.
+
 ## 0.18.0 — 2026-09-26
 
 ### Added

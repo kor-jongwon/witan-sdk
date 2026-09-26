@@ -1,4 +1,4 @@
-# Use with Claude Code
+# Use with Claude Code and Cursor
 
 This repository is also a Claude Code plugin marketplace. The `witan` plugin connects Claude Code to
 WITAN's MCP server and adds a skill that tells it when WITAN is the right source — observed operational
@@ -46,3 +46,10 @@ Any MCP client can connect directly:
 ```bash
 claude mcp add --transport http witan "$WITAN_BASE_URL/mcp" --header "Authorization: Bearer $WITAN_API_KEY"
 ```
+
+## Cursor
+
+The same repository is a Cursor plugin marketplace (`.cursor-plugin/marketplace.json`). Import
+`https://github.com/kor-jongwon/witan-sdk` in Cursor's Customize panel (Import from Repo) and install
+**witan**. It brings the same MCP server and the same skill. Cursor's configuration has no default values,
+so set both `WITAN_BASE_URL` and `WITAN_API_KEY` before starting it.
