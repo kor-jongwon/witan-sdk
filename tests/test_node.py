@@ -164,7 +164,8 @@ def test_token_guards_the_api_and_signs_part_urls(store: Path, tmp_path: Path) -
     try:
         assert httpx.get(f"{srv.url}/projects").status_code == 401
         assert httpx.get(f"{srv.url}/projects", headers={"authorization": "Bearer wrong"}).status_code == 401
-        assert httpx.get(f"{srv.url}/healthz").json()["auth"] == "token"
+        assert httpx.get(f"{srv.url}/healthz").json() == {"ok": True}  # liveness only, without the token
+        assert httpx.get(f"{srv.url}/healthz", headers={"authorization": "Bearer s3cret"}).json()["auth"] == "token"
         w = Witan("s3cret", base_url=srv.url)
         assert w.projects.list()[0]["slug"] == SLUG
         m = w.projects.manifest(SLUG)
@@ -228,3 +229,47 @@ def test_follow_pulls_the_latest_version_from_the_origin(tmp_path: Path) -> None
         srv.close()
     with pytest.raises(WitanError, match="origin"):
         Server(tmp_path / "store", port=0, follow=["agent-api-observatory"])
+
+
+def test_web_pages_cannot_use_the_node_behind_its_users_back(node) -> None:
+    port = node.httpd.server_address[1]
+    projects = f"{node.url}/projects"
+    # DNS rebinding: the page's own name, now resolving to 127.0.0.1
+    for host in (f"evil.test:{port}", "evil.test", f"127.0.0.1:{port + 1}"):
+        res = httpx.get(projects, headers={"host": host})
+        assert res.status_code == 403 and "Host" in res.json()["error"], host
+    assert httpx.get(f"{node.url}/healthz", headers={"host": f"evil.test:{port}"}).status_code == 403
+    for host in (f"localhost:{port}", f"127.0.0.1:{port}", f"[::1]:{port}"):
+        assert httpx.get(projects, headers={"host": host}).status_code == 200, host
+    # a cross-origin page, even when the browser sends a simple request
+    for origin in ("http://evil.test", "null", "https://127.0.0.1.evil.test"):
+        assert httpx.get(projects, headers={"origin": origin}).status_code == 403, origin
+    body = json.dumps({"sql": "SELECT 1"})
+    res = httpx.post(f"{node.url}/projects/{SLUG}/query", content=body, headers={"content-type": "text/plain"})
+    assert res.status_code == 415
+    res = httpx.post(f"{node.url}/mcp", content=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "ping"}),
+                     headers={"content-type": "application/x-www-form-urlencoded", "origin": "http://localhost:5173"})
+    assert res.status_code == 415
+    assert httpx.get(projects, headers={"origin": "http://localhost:5173"}).status_code == 200  # a local dev page
+
+
+def test_a_token_lets_other_origins_in(store: Path) -> None:
+    srv = Server(store, port=0, token="s3cret", quiet=True).start()
+    try:
+        page = {"origin": "https://dashboard.example"}
+        assert httpx.get(f"{srv.url}/projects", headers=page).status_code == 403
+        assert httpx.get(f"{srv.url}/projects", headers={**page, "authorization": "Bearer s3cret"}).status_code == 200
+    finally:
+        srv.close()
+
+
+def test_a_negative_content_length_is_refused_not_waited_on(node) -> None:
+    import socket
+
+    host, port = node.httpd.server_address[:2]
+    with socket.create_connection((host, port), timeout=5) as sock:
+        sock.sendall(f"POST /mcp HTTP/1.1\r\nHost: {host}:{port}\r\nContent-Type: application/json\r\n"
+                     "Content-Length: -1\r\n\r\n".encode())
+        sock.settimeout(5)
+        head = sock.recv(4096).decode("latin-1")
+    assert head.startswith("HTTP/1.0 400") or head.startswith("HTTP/1.1 400"), head[:80]

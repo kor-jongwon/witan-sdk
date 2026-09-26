@@ -9,9 +9,11 @@ the mirrors in between need no trust at all.
 
 When the origin rotates its key, the old key endorses the new one, and the endorsements travel in
 every signature (``chain``). A pinned key's endorsement is as good as the pin: the new key is
-verified against it and pinned (``endorsedBy``), offline too. A key the origin marks revoked stops
-counting, and so does everything it vouched for; a key nothing pinned vouches for is refused
-until someone re-pins by hand (``Witan.trust(force=True)`` / ``wtn trust add --force``).
+verified against it and pinned (``endorsedBy``), offline too. A retired key keeps verifying what
+it signed before the rotation. A key the origin marks revoked in its own keys document stops
+counting, and so does every key pinned through it; a key nothing pinned vouches for is refused
+until someone re-pins by hand (``Witan.trust(force=True)`` / ``wtn trust add --force``). Only the
+origin's own document is applied: ``Witan.trust`` refuses one that names another origin.
 
 Pinned keys live in ``$WITAN_TRUST_FILE``, else ``$XDG_CONFIG_HOME/witan/trust.json``, else
 ``~/.config/witan/trust.json``. ``WITAN_VERIFY=1`` makes every pull and load require a
@@ -28,16 +30,36 @@ import json
 import os
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from .bundle import LOCAL_KEYS, MANIFEST_FORMAT
 from .ed25519 import verify as _ed25519_verify
 from .errors import WitanError
 
+# Not signed: what the origin leaves out (api/src/signing.ts signedContent: signature, urlExpiresAt,
+# paid, the part URLs) and what this SDK adds to a copy (verified, and bundle.LOCAL_KEYS).
 VOLATILE = ("signature", "urlExpiresAt", "paid", "verified")
+STATUSES = ("current", "retired")
 
 
 class SignatureError(WitanError):
     """A manifest's signature is missing where required, untrusted, or does not match."""
+
+
+def origin_of(url: str) -> str:
+    """``scheme://host[:port]`` of ``url``: lowercase, default port dropped, no path — what two
+    spellings of one origin have in common."""
+    p = urlsplit(str(url).strip())
+    scheme = p.scheme.lower()
+    host = (p.hostname or "").lower()
+    if ":" in host:
+        host = f"[{host}]"
+    try:
+        port = p.port
+    except ValueError:
+        port = None
+    default = {"http": 80, "https": 443}.get(scheme)
+    return f"{scheme}://{host}" + (f":{port}" if port is not None and port != default else "")
 
 
 def trust_file() -> Path:
@@ -83,17 +105,36 @@ def _key(origin: str, k: dict[str, Any]) -> dict[str, Any]:
     return {"kid": k["kid"], "alg": "Ed25519", "publicKey": k["publicKey"]}
 
 
+def _status(k: dict[str, Any]) -> dict[str, Any]:
+    """The published status worth keeping with a pin (current or retired)."""
+    return {"status": k["status"]} if k.get("status") in STATUSES else {}
+
+
+def _revoked(entries: list[dict[str, Any]]) -> set[str]:
+    """The pinned keys that no longer count: revoked, or pinned through an endorsement by such a
+    key — whatever a revoked key vouched for goes with it."""
+    out = {e["kid"] for e in entries if e.get("revoked")}
+    grew = True
+    while grew:
+        grew = False
+        for e in entries:
+            if e["kid"] not in out and e.get("endorsedBy") in out:
+                out.add(e["kid"])
+                grew = True
+    return out
+
+
 def add(origin: str, keys: list[dict[str, Any]]) -> dict[str, Any]:
     """Pin ``keys`` for ``origin`` as they are (trust on first use), alongside any already pinned."""
     origin = origin.rstrip("/")
-    good = [_key(origin, k) for k in keys]
+    good = [(_key(origin, k), _status(k)) for k in keys]
     if not good:
         raise WitanError(f"{origin} publishes no signing key")
     origins = trusted()
     pinned = origins.get(origin, [])
     have = {k["kid"] for k in pinned}
     now = _now()
-    new = [{**k, "addedAt": now} for k in good if k["kid"] not in have]
+    new = [{**k, **status, "addedAt": now} for k, status in good if k["kid"] not in have]
     origins[origin] = pinned + new
     _save(origins)
     return {"origin": origin, "keys": [k["kid"] for k in origins[origin] if not k.get("revoked")],
@@ -156,48 +197,61 @@ def _pin(origin: str, entries: list[dict[str, Any]]) -> None:
     _save(origins)
 
 
-def refresh(data: dict[str, Any], *, force: bool = False) -> dict[str, Any]:
+def refresh(data: dict[str, Any], *, force: bool = False, expect: str | None = None) -> dict[str, Any]:
     """Apply an origin's published keys (``/.well-known/witan-keys``) to the trust file.
 
-    First contact pins them (trust on first use). After that only what the pinned keys vouch for
-    is added: a new key endorsed — directly or through a chain — by a pinned key; keys the origin
-    marks revoked are marked here too and stop counting. A new key nothing pinned vouches for is
-    ``refused`` unless ``force`` (re-pinning by hand, after checking its id out of band).
+    First contact pins them (trust on first use). After that the document's revocations and
+    retirements apply to the pinned keys — it is the origin's own document — and a revoked key
+    takes every key pinned through it along. A new key is added only when a pinned key that still
+    counts endorsed it (directly or through a chain); one nothing pinned vouches for is ``refused``
+    unless ``force`` (re-pinning by hand, after checking its id out of band). ``expect`` is the
+    origin the document must be for (the URL it was fetched from); another origin raises
+    ``SignatureError`` and nothing changes.
     """
+    if not isinstance(data, dict):
+        raise WitanError("the server did not answer with a keys document")
     origin = str(data.get("origin", "")).rstrip("/")
+    if expect is not None and origin_of(origin) != origin_of(expect):
+        raise SignatureError(f"these keys are for {origin or '(no origin)'}, not {expect.rstrip('/')} — pin them only if that "
+                             f"server speaks for {origin or 'it'} (a proxy): origin={origin!r} / wtn trust add --origin {origin}")
     published = [k for k in data.get("keys", []) if isinstance(k, dict)]
+    status = {k.get("kid"): k.get("status") for k in published}
     live = [k for k in published if k.get("status") != "revoked"]
-    revoked_now = {k.get("kid") for k in published if k.get("status") == "revoked"}
+    revoked_now = {k["kid"] for k in published if k.get("status") == "revoked" and isinstance(k.get("kid"), str)}
     origins = trusted()
     if not origins.get(origin):
-        return {**add(origin, live), "revoked": sorted(k for k in revoked_now if k)}
+        return {**add(origin, live), "revoked": sorted(revoked_now)}
     entries = origins[origin]
-    marked = []
+    now = _now()
+    marked: list[str] = []
     for e in entries:
         if e["kid"] in revoked_now and not e.get("revoked"):
             e["revoked"] = True
-            e["revokedAt"] = _now()
+            e["revokedAt"] = now
             marked.append(e["kid"])
-    if marked:
-        _save(origins)
-    revoked = {e["kid"] for e in entries if e.get("revoked")} | {k for k in revoked_now if k}
-    known = {e["kid"]: e for e in entries if not e.get("revoked")}
+        elif status.get(e["kid"]) == "retired" and not e.get("revoked"):
+            e["status"] = "retired"
+    cut = _revoked(entries)
     by_kid = {k.get("kid"): k for k in live}
     links = [{**by_kid[e["kid"]], "by": e.get("by"), "sig": e.get("sig")}
              for e in data.get("endorsements", []) if isinstance(e, dict) and e.get("kid") in by_kid]
-    learned = _walk(origin, links, known, revoked, None, f"{origin}'s published keys")
-    if learned:
-        _pin(origin, learned)
-    learned_ids = {k["kid"] for k in learned}
-    refused = [k for k in live if k.get("kid") not in known and k.get("kid") not in learned_ids]
-    forced = []
+    known = {e["kid"]: e for e in entries if e["kid"] not in cut}
+    have = {e["kid"] for e in entries}
+    reached = _walk(origin, links, known, cut, None, f"{origin}'s published keys")
+    learned = [{**k, **_status(by_kid[k["kid"]]), "addedAt": now} for k in reached if k["kid"] not in have]
+    entries.extend(learned)
+    counted = {e["kid"] for e in entries} - _revoked(entries)
+    refused = [k for k in live if k.get("kid") not in counted]
+    forced: list[dict[str, Any]] = []
     if force and refused:
-        forced = [{**_key(origin, k), "forced": True} for k in refused]
-        _pin(origin, forced)
+        forced = [{**_key(origin, k), **_status(k), "forced": True, "addedAt": now} for k in refused]
+        again = {k["kid"] for k in forced}  # a key pinned through a revoked one is re-rooted by hand
+        entries[:] = [e for e in entries if e["kid"] not in again] + forced
         refused = []
-    now_pinned = [k["kid"] for k in trusted().get(origin, []) if not k.get("revoked")]
-    return {"origin": origin, "keys": now_pinned, "added": [k["kid"] for k in learned + forced],
-            "refused": [k.get("kid") for k in refused], "revoked": marked, "file": str(trust_file())}
+    _save(origins)
+    return {"origin": origin, "keys": [e["kid"] for e in entries if e["kid"] not in _revoked(entries)],
+            "added": [k["kid"] for k in learned + forced], "refused": [k.get("kid") for k in refused],
+            "revoked": marked, "file": str(trust_file())}
 
 
 def statement(manifest: dict[str, Any], origin: str) -> bytes:
@@ -240,10 +294,13 @@ def check(manifest: dict[str, Any], *, require: bool | None = None) -> dict[str,
             raise SignatureError(f"{what} is signed by {origin}, which is not trusted here — pin its key first: "
                                  f"WITAN_BASE_URL={origin} wtn trust add")
         return {"status": "untrusted", "origin": origin, "kid": kid, "learned": []}
-    revoked = {e["kid"] for e in entries if e.get("revoked")}
+    revoked = _revoked(entries)
     if kid in revoked:
-        raise SignatureError(f"{what} is signed with key {kid}, which {origin} revoked")
-    known = {e["kid"]: e for e in entries if not e.get("revoked")}
+        if any(e["kid"] == kid and e.get("revoked") for e in entries):
+            raise SignatureError(f"{what} is signed with key {kid}, which {origin} revoked")
+        raise SignatureError(f"{what} is signed with key {kid}, which was pinned through a key {origin} revoked — check "
+                             f"the key id with its operator, then: WITAN_BASE_URL={origin} wtn trust add --force")
+    known = {e["kid"]: e for e in entries if e["kid"] not in revoked}
     learned: list[dict[str, Any]] = []
     key = known.get(kid)
     if key is None:
@@ -254,6 +311,8 @@ def check(manifest: dict[str, Any], *, require: bool | None = None) -> dict[str,
             raise SignatureError(f"{what} is signed with key {kid}, which is not one of {origin}'s pinned keys and no "
                                  "endorsement leads to it from one — if the origin re-keyed, check the new key id with "
                                  f"its operator, then: WITAN_BASE_URL={origin} wtn trust add --force")
+        # a key the chain passes through was succeeded; the one that signed is in use
+        learned = [{**k, "status": "current" if k["kid"] == kid else "retired"} for k in learned]
     try:
         public = base64.b64decode(key["publicKey"])
         signature = base64.b64decode(str(sig.get("sig", "")), validate=True)

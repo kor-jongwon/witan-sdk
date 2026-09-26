@@ -10,6 +10,7 @@
 
 from .client import Witan
 from .trust import SignatureError
+from .deprecation import WitanDeprecationWarning
 from .errors import (
     AuthError,
     ConflictError,
@@ -22,7 +23,7 @@ from .errors import (
     WitanError,
 )
 
-__version__ = "0.16.0"
+__version__ = "0.17.0"
 
 __all__ = [
     "Witan",
@@ -36,5 +37,6 @@ __all__ = [
     "ServerError",
     "ValidationError",
     "WaitTimeout",
+    "WitanDeprecationWarning",
     "__version__",
 ]

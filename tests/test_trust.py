@@ -216,7 +216,7 @@ def fake() -> SignedFake:
 
 @pytest.fixture
 def w(fake: SignedFake) -> Witan:
-    return Witan("km_test", base_url="http://api.test", transport=httpx.MockTransport(fake))
+    return Witan("km_test", base_url=ORIGIN, transport=httpx.MockTransport(fake))
 
 
 def downloads(fake: SignedFake) -> int:
@@ -225,8 +225,31 @@ def downloads(fake: SignedFake) -> int:
 
 def test_client_trust_pins_the_published_keys(w: Witan) -> None:
     r = w.trust()
-    assert r["origin"] == ORIGIN and r["from"] == "http://api.test" and r["added"] == [kid(SEED)]
+    assert r["origin"] == ORIGIN and r["from"] == ORIGIN and r["added"] == [kid(SEED)]
     assert list(w.trusted()) == [ORIGIN] and w.untrust(ORIGIN) and w.trusted() == {}
+
+
+def test_trust_add_refuses_keys_a_server_publishes_for_another_origin(fake: SignedFake) -> None:
+    elsewhere = Witan("km_test", base_url="http://api.test", transport=httpx.MockTransport(fake))
+    with pytest.raises(SignatureError, match="not http://api.test"):
+        elsewhere.trust()  # it says it is https://origin.test
+    assert trust.trusted() == {}
+    r = elsewhere.trust(origin=ORIGIN + "/")  # a proxy: say which origin it speaks for
+    assert r["origin"] == ORIGIN and r["from"] == "http://api.test" and trust.trusted()[ORIGIN]
+    with pytest.raises(SignatureError):
+        elsewhere.trust(origin="https://origin.test.evil.test")
+
+
+@pytest.mark.parametrize("base", ["https://ORIGIN.test", "https://origin.test:443/"])
+def test_trust_add_compares_origins_not_spellings(fake: SignedFake, base: str) -> None:
+    assert Witan("km_test", base_url=base, transport=httpx.MockTransport(fake)).trust()["origin"] == ORIGIN
+    assert trust.origin_of("https://Origin.test:443/api/") == trust.origin_of(ORIGIN) == ORIGIN
+
+
+@pytest.mark.parametrize("base", ["http://origin.test", "https://origin.test:8443", "https://origin.test.evil"])
+def test_trust_add_refuses_other_schemes_ports_and_hosts(fake: SignedFake, base: str) -> None:
+    with pytest.raises(SignatureError):
+        Witan("km_test", base_url=base, transport=httpx.MockTransport(fake)).trust()
 
 
 def test_pull_records_the_signature_status(w: Witan, fake: SignedFake, tmp_path: Path) -> None:
@@ -414,16 +437,90 @@ def test_a_revoked_key_stops_counting_and_so_does_what_it_vouched_for() -> None:
     assert trust.check(signed(manifest_for(110), seed=K0))["status"] == "verified"
 
 
+def test_an_emergency_revocation_of_the_current_key_applies_at_once() -> None:
+    trust.refresh(keys_published(K1, retired=[K0], endorsements=[link(K0, K1)]))  # pinned: K1 current, K0 retired
+    # K1 leaked: the origin revokes it and signs with K2, which nothing still trusted can endorse
+    r = trust.refresh(keys_published(K2, retired=[K0], revoked=[K1]))
+    assert r["revoked"] == [kid(K1)] and r["refused"] == [kid(K2)] and "ignored" not in r
+    with pytest.raises(SignatureError, match="revoked"):
+        trust.check(signed(manifest_for(110), seed=K1))  # what the leaked key signs stops verifying now
+    with pytest.raises(SignatureError, match="no endorsement leads"):
+        trust.check(signed_chain(manifest_for(110), K2, [link(K1, K2)]))
+    assert trust.refresh(keys_published(K2, retired=[K0], revoked=[K1]), force=True)["added"] == [kid(K2)]
+    assert trust.check(signed(manifest_for(110), seed=K2))["status"] == "verified"
+
+
+def test_a_document_for_another_origin_changes_nothing() -> None:
+    trust.add(ORIGIN, [key_of(K0)])
+    with pytest.raises(SignatureError):
+        trust.refresh({**keys_published(K1, revoked=[K0]), "origin": ORIGIN}, expect="https://other.test")
+    assert pinned_kids() == [kid(K0)]
+    assert trust.check(signed(manifest_for(110), seed=K0))["status"] == "verified"
+
+
+def test_revocation_reaches_the_keys_pinned_through_the_revoked_one() -> None:
+    trust.add(ORIGIN, [key_of(K0), key_of(K3)])
+    trust.check(signed_chain(manifest_for(110), K1, [link(K0, K1)]))  # K1 learned through K0
+    r = trust.refresh(keys_published(K2, retired=[K3], revoked=[K0], endorsements=[link(K3, K2)]))
+    assert r["revoked"] == [kid(K0)] and r["added"] == [kid(K2)] and kid(K1) not in r["keys"]
+    with pytest.raises(SignatureError, match="pinned through a key"):
+        trust.check(signed(manifest_for(110), seed=K1))
+    with pytest.raises(SignatureError, match="no endorsement leads"):  # nor does what K1 vouches for
+        trust.check(signed_chain(manifest_for(110), SEED, [link(K1, SEED)]))
+    assert trust.check(signed(manifest_for(110), seed=K2))["status"] == "verified"
+
+
+def test_retired_keys_keep_verifying_what_they_signed() -> None:
+    r = trust.refresh(keys_published(K1, retired=[K0], endorsements=[link(K0, K1)]))  # first contact
+    assert sorted(r["added"]) == sorted([kid(K0), kid(K1)])
+    entries = {k["kid"]: k for k in trust.trusted()[ORIGIN]}
+    assert entries[kid(K0)]["status"] == "retired" and entries[kid(K1)]["status"] == "current"
+    assert trust.check(signed(manifest_for(110), seed=K0))["status"] == "verified"  # a copy from before the rotation
+    assert trust.check(signed_chain(manifest_for(110), K2, [link(K0, K2)]))["learned"] == [kid(K2)]
+    # the next rotation retires K1: recorded, and what K1 signed still verifies
+    r = trust.refresh(keys_published(K3, retired=[K0, K1], endorsements=[link(K1, K3)]))
+    assert r["added"] == [kid(K3)] and r["revoked"] == []
+    assert {k["kid"]: k for k in trust.trusted()[ORIGIN]}[kid(K1)]["status"] == "retired"
+    assert trust.check(signed(manifest_for(110), seed=K1))["status"] == "verified"
+    assert trust.check(signed(manifest_for(110), seed=K3))["status"] == "verified"
+
+
+def test_a_chain_records_which_key_signs_and_which_was_succeeded() -> None:
+    trust.add(ORIGIN, [key_of(K0)])
+    trust.check(signed_chain(manifest_for(110), K2, [link(K0, K1), link(K1, K2)]))
+    entries = {k["kid"]: k for k in trust.trusted()[ORIGIN]}
+    assert entries[kid(K1)]["status"] == "retired" and entries[kid(K2)]["status"] == "current"
+    assert trust.check(signed(manifest_for(110), seed=K1))["status"] == "verified"
+
+
 def test_the_client_refreshes_and_forces(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     served = {"doc": keys_published(K0)}
 
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=served["doc"])
 
-    w = Witan("km_test", base_url="http://api.test", transport=httpx.MockTransport(handler))
+    w = Witan("km_test", base_url=ORIGIN, transport=httpx.MockTransport(handler))
     assert w.trust()["added"] == [kid(K0)]
     served["doc"] = keys_published(K1, retired=[K0], endorsements=[link(K0, K1)])
     assert w.trust()["added"] == [kid(K1)]
     served["doc"] = keys_published(K2, retired=[K1])
     assert w.trust()["refused"] == [kid(K2)]
     assert w.trust(force=True)["added"] == [kid(K2)]
+
+
+def test_a_bought_manifest_verifies_and_its_receipt_stays_off_disk(w: Witan, tmp_path: Path) -> None:
+    w.trust()
+    receipt = {"success": True, "transaction": "0x" + "ab" * 32, "network": "eip155:84532", "payer": "0x1"}
+
+    def bought(slug: str, **kw) -> dict:  # what purchase() returns: the pay service's answer plus the receipt
+        return {**signed(manifest_for(110)), "paid": True, "x402": receipt}
+
+    w.buy_dataset = bought  # type: ignore[method-assign]
+    m = w.projects.pull_paid(SLUG, tmp_path, verify=True)
+    assert m["verified"] == "verified" and m["x402"] == receipt  # the caller keeps the proof a dispute needs
+    on_disk = json.loads((tmp_path / SLUG / "v110" / "manifest.json").read_text(encoding="utf-8"))
+    assert "x402" not in on_disk and "paid" not in on_disk and on_disk["verified"] == "verified"
+    assert trust.check({**on_disk, "x402": receipt}, require=True)["status"] == "verified"
+    path = tmp_path / "paid.witan"
+    w.projects.save(SLUG, path, version=110, cache_dir=tmp_path)
+    assert "x402" not in json.loads(members(path)["manifest.json"])

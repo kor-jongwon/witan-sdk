@@ -206,3 +206,13 @@ def test_promote_bundles_offline_and_pushes_to_the_origin(node, w: Witan, tmp_pa
     assert w.projects.contribute(SLUG, [{"key": "c", "n": 3, "v": 3}])["mergedVersion"] == 2
     with pytest.raises(WitanError, match="not a local project"):
         origin.projects.promote("nope-nope", store=store)
+
+
+def test_promote_needs_no_origin_signature_under_witan_verify(node, w: Witan, tmp_path: Path,
+                                                              monkeypatch: pytest.MonkeyPatch) -> None:
+    w.projects.contribute(SLUG, [{"key": "a", "n": 1, "v": 1}])
+    monkeypatch.setenv("WITAN_VERIFY", "1")  # about copies of origin data; a node's own versions are unsigned
+    origin = Witan("km_test", base_url="http://origin.invalid")
+    monkeypatch.setattr(origin.projects, "push", lambda slug, path, **kw: {"contributionId": "c-1", "status": "merged"})
+    r = origin.projects.promote(SLUG, to="fn-state-origin", store=Path(node.node.store.root))
+    assert r["status"] == "merged" and r["promoted"]["records"] == 1

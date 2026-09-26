@@ -297,10 +297,93 @@ def test_pull_parquet_parts_verified_and_incremental(w: Witan, fake: Fake, tmp_p
 
 
 def test_pull_rejects_corrupt_part(w: Witan, tmp_path) -> None:
-    with pytest.raises(WitanError, match="sha256"):
+    with pytest.raises(WitanError, match="sha256|larger than"):  # the store serves more bytes than listed
         w.projects.pull("agent-api-observatory", tmp_path, version=111)
     parts = tmp_path / "agent-api-observatory" / "parts"
     assert not list(parts.glob("*.part")) and not (parts / f"{SHA_B}.parquet").exists()
+
+
+def _serving(manifest: dict, body: bytes = PART_A) -> tuple[Witan, list]:
+    calls: list = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if request.url.host == "parts.test":
+            return httpx.Response(200, content={"/a": PART_A, "/b": PART_B}.get(request.url.path, body))
+        return httpx.Response(200, json=manifest)
+
+    return Witan("km_test", base_url="http://api.test", transport=httpx.MockTransport(handler)), calls
+
+
+def test_a_part_hash_is_checked_before_it_names_a_file(tmp_path) -> None:
+    for sha in ("../../evil", "A" * 64, SHA_A + "\n", SHA_A[:63]):
+        m = {**manifest_for(110), "parts": [{**manifest_for(110)["parts"][0], "sha256": sha}]}
+        w, calls = _serving(m)
+        with pytest.raises(WitanError, match="64 hex"):
+            w.projects.pull("agent-api-observatory", tmp_path / "out")
+        assert not any(c.url.host == "parts.test" for c in calls)
+    assert not (tmp_path / "evil").exists() and not list((tmp_path / "out").rglob("*.parquet"))
+
+
+def test_a_part_download_stops_at_the_listed_size(tmp_path) -> None:
+    m = manifest_for(110)
+    m = {**m, "parts": [{**m["parts"][1], "url": "http://parts.test/big"}], "totals": {**m["totals"], "records": 1}}
+    w, _ = _serving(m, body=PART_B + b"x" * 1_000_000)
+    with pytest.raises(WitanError, match="larger than the 72 bytes"):
+        w.projects.pull("agent-api-observatory", tmp_path)
+    assert not list((tmp_path / "agent-api-observatory" / "parts").iterdir())
+
+
+def test_slugs_are_checked_before_they_become_paths(w: Witan, fake: Fake, tmp_path) -> None:
+    n = len(fake.calls)
+    for bad in ("../x", "a/b", "..", "UPPER", "x"):
+        with pytest.raises(WitanError, match="not a project slug"):
+            w.projects.pull(bad, tmp_path)
+        with pytest.raises(WitanError, match="not a project slug"):
+            w.projects.save(bad, tmp_path / "b.witan", cache_dir=tmp_path)
+    assert len(fake.calls) == n and not any(tmp_path.iterdir())
+
+
+def test_a_manifest_must_be_the_one_asked_for(tmp_path) -> None:
+    from witan_sdk import SignatureError
+
+    other = {**manifest_for(110), "project": "someone-else"}
+    w, calls = _serving(other)
+    with pytest.raises(SignatureError, match="got a manifest of someone-else"):
+        w.projects.pull("agent-api-observatory", tmp_path)
+    w, calls = _serving(manifest_for(109))
+    with pytest.raises(SignatureError, match="v109"):
+        w.projects.pull("agent-api-observatory", tmp_path, version=110)
+    assert not any(c.url.host == "parts.test" for c in calls) and not any(tmp_path.iterdir())
+
+
+def test_latest_never_goes_back(tmp_path) -> None:
+    from witan_sdk import SignatureError
+
+    w, _ = _serving(manifest_for(110))
+    w.projects.pull("agent-api-observatory", tmp_path)
+    w, calls = _serving(manifest_for(109))  # an old manifest replayed as "latest"
+    with pytest.raises(SignatureError, match="older than v110"):
+        w.projects.pull("agent-api-observatory", tmp_path)
+    assert not any(c.url.host == "parts.test" for c in calls)
+    assert w.projects.pull("agent-api-observatory", tmp_path, version=109)["version"] == 109  # asked for by number: fine
+
+
+def test_verify_leaves_no_unsigned_way_in(w: Witan, fake: Fake, tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from witan_sdk import SignatureError
+
+    w.projects.pull("agent-api-observatory", tmp_path, version=110)  # an unsigned local copy
+    n = len(fake.calls)
+    monkeypatch.setenv("WITAN_VERIFY", "1")
+    with pytest.raises(SignatureError, match="not signed"):
+        w.projects.pull("agent-api-observatory", tmp_path, version=110)  # the cached copy is checked too
+    with pytest.raises(SignatureError, match="jsonl"):
+        w.projects.pull("agent-api-observatory", tmp_path, format="jsonl")
+    assert len(fake.calls) == n  # refused before any request
+    with pytest.raises(SignatureError, match="not published as signed parts"):
+        w.projects.pull("legacy", tmp_path)  # 409: no quiet fallback to unsigned jsonl
+    assert not (tmp_path / "legacy").exists()
+    assert w.projects.pull("agent-api-observatory", tmp_path, version=110, verify=False)["version"] == 110
 
 
 def test_push_splits_uploads_in_parallel_and_completes(w: Witan, fake: Fake, tmp_path, monkeypatch) -> None:
@@ -332,6 +415,40 @@ def test_push_resumes_after_a_failed_part(w: Witan, fake: Fake, tmp_path, monkey
     r = w.projects.push("agent-api-observatory", f, compress=False, part_size=4, workers=1)
     assert len(fake.upload_inits) == inits  # resumed: no new upload started
     assert r["uploadedParts"] == 2 and fake.completions[-1][0]["etag"] == "etag-1"
+
+
+def test_push_rebuilds_the_gzip_when_the_file_changed(w: Witan, fake: Fake, tmp_path, monkeypatch) -> None:
+    import gzip
+    import os
+
+    import witan_sdk.client as mod
+    monkeypatch.setattr(mod, "MIN_PART_SIZE", 16)
+    f = tmp_path / "records.jsonl"
+    f.write_bytes("".join(f'{{"old": {i}}}\n' for i in range(200)).encode())
+    fake.fail_part2_once = True
+    with pytest.raises(WitanError):
+        w.projects.push("agent-api-observatory", f, part_size=16, workers=1)
+    assert (tmp_path / "records.jsonl.witan-upload.gz").exists()  # left for a resume
+    new_text = "".join(f'{{"new": {i}}}\n' for i in range(200))
+    f.write_bytes(new_text.encode())
+    st = f.stat()
+    os.utime(f, ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000))  # the same second on a coarse clock: still seen
+    inits = len(fake.upload_inits)
+    fake.put_bodies.clear()
+    r = w.projects.push("agent-api-observatory", f, part_size=16, workers=1)
+    assert len(fake.upload_inits) == inits + 1  # a new upload, not a resume of the old bytes
+    sent = b"".join(fake.put_bodies[n][-1] for n in range(1, r["parts"] + 1))
+    assert gzip.decompress(sent).decode() == new_text
+
+
+def test_push_does_not_trust_a_stray_gzip(w: Witan, fake: Fake, tmp_path) -> None:
+    import gzip
+
+    f = tmp_path / "records.jsonl"
+    f.write_bytes(b'{"ok": true}\n')
+    (tmp_path / "records.jsonl.witan-upload.gz").write_bytes(gzip.compress(b'{"stale": true}\n'))  # no progress file
+    w.projects.push("agent-api-observatory", f)
+    assert gzip.decompress(fake.put_bodies[1][-1]) == b'{"ok": true}\n'
 
 
 def test_push_gzips_by_default(w: Witan, fake: Fake, tmp_path) -> None:
@@ -370,7 +487,7 @@ def test_buy_without_extra_or_key(w: Witan, monkeypatch: pytest.MonkeyPatch) -> 
 def test_pull_paid_materializes_the_bought_manifest(w: Witan, fake: Fake, tmp_path, monkeypatch) -> None:
     bought: list[tuple[str, int | None]] = []
 
-    def fake_buy(slug: str, *, version: int | None = None, private_key: str | None = None) -> dict:
+    def fake_buy(slug: str, *, version: int | None = None, private_key: str | None = None, **limits) -> dict:
         bought.append((slug, version))
         return {**manifest_for(110), "project": "paid-one", "paid": True}
 
@@ -390,10 +507,10 @@ def test_credits_and_buy_credits_target_the_operator(w: Witan, monkeypatch: pyte
     assert c["balanceMicro"] == 1500000 and c["ledger"][0]["kind"] == "topup"
     seen: list = []
     monkeypatch.setattr("witan_sdk.payments.purchase",
-                        lambda pay_url, path, params, key: seen.append((path, params)) or {"paid": True, "balanceMicro": 2500000})
+                        lambda pay_url, path, params, key, **kw: seen.append((path, params, kw["max_price"])) or {"paid": True, "balanceMicro": 2500000})
     assert w.buy_credits(private_key="0xk")["balanceMicro"] == 2500000
-    assert w.buy_credits(operator_id="op-9", private_key="0xk")["paid"] is True
-    assert seen == [("/paid/credits", {"operator": "op-1"}), ("/paid/credits", {"operator": "op-9"})]
+    assert w.buy_credits(operator_id="op-9", private_key="0xk", max_price="5")["paid"] is True
+    assert seen == [("/paid/credits", {"operator": "op-1"}, None), ("/paid/credits", {"operator": "op-9"}, "5")]
 
 
 def test_query_runs_sql_over_local_parts(w: Witan, tmp_path) -> None:
@@ -431,9 +548,14 @@ def test_query_remote_posts_sql(w: Witan, anon: Witan) -> None:
         anon.projects.query_remote("agent-api-observatory", "SELECT 1")
 
 
-def test_dispute_by_settlement_tx(w: Witan, fake: Fake) -> None:
-    d = w.dispute("0x" + "ab" * 32, "manifest parts were corrupt")
-    assert d["id"] == "d-1" and d["status"] == "open"
+def test_dispute_status_and_a_dispute_needs_the_paying_wallet(w: Witan, fake: Fake, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("WITAN_WALLET_KEY", raising=False)
     assert w.dispute_status("d-1")["status"] == "open"
+    n = len(fake.calls)
+    with pytest.raises(WitanError, match="settlement tx hash"):
+        w.dispute("not-a-tx", "manifest parts were corrupt")
+    with pytest.raises(PaymentRequiredError, match="wallet key"):
+        w.dispute("0x" + "ab" * 32, "manifest parts were corrupt")
+    assert len(fake.calls) == n  # both refused before any request (signed disputes: test_purchases.py)
     calls = [c for c in fake.calls if c.url.path.startswith("/disputes")]
     assert calls and all("authorization" not in c.headers for c in calls)  # payment proof, not an API key
