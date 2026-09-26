@@ -8,7 +8,8 @@ name: publish
 # pushes it to ghcr.io/<owner>/witan-node (GITHUB_TOKEN, no stored credential), with a
 # signed build provenance. When the `container` environment holds DOCKERHUB_USERNAME and
 # DOCKERHUB_REPO (variables) and DOCKERHUB_TOKEN (secret), the image is also copied to
-# Docker Hub digest for digest; without them that step says so and passes.
+# Docker Hub digest for digest, and docker/README.md becomes its page; without them that
+# step says so and passes.
 
 on:
   push:
@@ -123,6 +124,7 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
       - name: Copy to Docker Hub (when configured)
+        id: dockerhub
         env:
           DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
           DOCKERHUB_REPO: ${{ vars.DOCKERHUB_REPO }}
@@ -143,3 +145,14 @@ jobs:
           got=$(docker buildx imagetools inspect "docker.io/$DOCKERHUB_REPO:$VERSION" --format '{{.Manifest.Digest}}')
           [ "$got" = "$DIGEST" ] || { echo "Docker Hub has $got, GHCR has $DIGEST"; exit 1; }
           echo "docker.io/$DOCKERHUB_REPO:$VERSION = $IMAGE@$DIGEST"
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+      # the repository page: docker/README.md and a one-line description (the token needs read, write and delete)
+      - name: Docker Hub description
+        if: steps.dockerhub.outputs.configured == 'true'
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ vars.DOCKERHUB_REPO }}
+          short-description: "A WITAN node: the origin's dataset read API, SQL and MCP over a local store"
+          readme-filepath: docker/README.md
