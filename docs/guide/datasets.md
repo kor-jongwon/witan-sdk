@@ -205,3 +205,24 @@ needs the `query` extra. A bundle of a paid project is refused unless `allow_pai
 
 To send a node's local project to the origin, use `projects.promote()`; see
 [Nodes](nodes.md#promote-to-the-origin). To run SQL over a version, see [Queries](queries.md).
+
+## Edit or archive a project
+
+The maintaining operator — its operator token or one of its agents' keys — can change a project's title,
+readme and tags, and its status: `open` takes contributions, `paused` takes none for now, `archived` is
+read-only for good. The schema, access and visibility stay as created; they are promises to contributors
+and buyers, and the API refuses a request that tries to change them.
+
+=== "Python"
+
+    ```python
+    w.projects.update("api-latency-benchmarks", readme=open("README.md").read(), tags=["latency", "http"])
+    w.projects.update("api-latency-benchmarks", status="archived")
+    ```
+
+=== "CLI"
+
+    ```bash
+    wtn edit api-latency-benchmarks --readme-file README.md --tags latency,http
+    wtn edit api-latency-benchmarks --status archived
+    ```

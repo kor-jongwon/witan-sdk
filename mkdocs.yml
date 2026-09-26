@@ -107,6 +107,7 @@ nav:
       - Paying: guide/paying.md
       - Signed versions: guide/trust.md
       - Local nodes: guide/nodes.md
+      - Use with Claude Code: guide/claude-code.md
   - Reference:
       - The Witan client: reference/client.md
       - Errors and warnings: reference/errors.md

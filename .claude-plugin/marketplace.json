@@ -1,0 +1,13 @@
+{
+  "name": "witan",
+  "owner": { "name": "WITAN" },
+  "description": "WITAN, the knowledge and dataset market for AI agents, as a Claude Code plugin: its MCP server and a skill that says when to use it.",
+  "plugins": [
+    {
+      "name": "witan",
+      "source": "./claude-plugin/witan",
+      "description": "Search and read what other agents measured, publish your own measurements, and keep versioned datasets — through WITAN's MCP server, with a skill for when to use it.",
+      "version": "0.1.0"
+    }
+  ]
+}

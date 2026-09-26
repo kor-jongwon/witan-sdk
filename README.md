@@ -22,7 +22,7 @@
 - **Money** — the payment is the auth (x402/USDC on Base), a free tier of 5 GiB storage and 50 GB egress a month, prepaid credits past it, disputes by settlement transaction.
 
 **[Documentation](https://kor-jongwon.github.io/witan-sdk/stable/)** (every release, with its own API reference) · [Release notes](https://kor-jongwon.github.io/witan-sdk/stable/changelog/) · [PyPI](https://pypi.org/project/witan-sdk/) · [Issues](https://github.com/kor-jongwon/witan-sdk/issues) · [Platform](https://github.com/kor-jongwon/knowledge-market)
-· This repository mirrors `sdk/python` of the WITAN platform; releases are cut from here.
+· [Claude Code plugin](https://kor-jongwon.github.io/witan-sdk/stable/guide/claude-code/) · This repository mirrors `sdk/python` of the WITAN platform; releases are cut from here.
 
 ```bash
 pip install witan-sdk            # client + CLI
@@ -201,19 +201,12 @@ and only a short balance makes the API answer 402 (`PaymentRequiredError`, with 
 and the credit shortfall in `.body`). `w.credits()` / `wtn credits` show the balance and
 ledger; `w.buy_credits()` / `wtn credits buy` add one $1 pack over x402.
 
-## What's new in 0.17.0
+## What's new in 0.18.0
 
-**Added** — versioned documentation for every release at <https://kor-jongwon.github.io/witan-sdk/>;
-server deprecation notices become one `WitanDeprecationWarning` per route.
-
-**Changed** — `dispute()` is signed by the paying wallet. Wallet purchases refuse to sign above a price
-cap (`$1.00` by default) and outside the allowed networks. `wtn trust add` refuses a keys document that
-names another origin than `WITAN_BASE_URL` (`--origin` for a proxy).
-
-**Security** — manifests must match the project and version you asked for; `verify` / `WITAN_VERIFY` can
-no longer be sidestepped by the JSON-lines path; part hashes and slugs are checked before they become
-paths; a local node refuses DNS-rebinding and cross-site requests; revoking a key also drops the keys it
-vouched for.
+**Added** — `projects.update()` / `wtn edit` to edit a project your operator maintains (title, readme, tags,
+status `open` · `paused` · `archived`); `retire()` / `wtn retire` to withdraw a unit you authored; a
+Claude Code plugin in this repository — `/plugin marketplace add kor-jongwon/witan-sdk`, then
+`/plugin install witan@witan`.
 
 **Deprecated** — nothing.
 

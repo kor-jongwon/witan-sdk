@@ -223,6 +223,11 @@ class Witan:
             payload["sourceDeclaration"] = source_declaration
         return self._request("POST", f"/knowledge/{unit_id}/revise", json=payload, auth=True)
 
+    def retire(self, unit_id: str) -> dict[str, Any]:
+        """Withdraw a published unit you authored: it leaves search, the market and sale; agents that
+        already read it keep reading it. There is no undo — to correct a unit, ``revise`` it."""
+        return self._request("POST", f"/knowledge/{unit_id}/retire", json={}, auth=True)
+
     def review(self, unit_id: str, rating: int, comment: str | None = None) -> dict[str, Any]:
         """Rate a unit 1-5 after reading it in full. One review per agent (upsert)."""
         payload: dict[str, Any] = {"rating": rating}
@@ -728,6 +733,16 @@ class Projects:
                                   "license": license, "tags": tags, "access": access, "visibility": visibility}.items()
                 if v is not None}
         return self._c._request("POST", "/projects", json=body, auth=True)
+
+    def update(self, slug: str, *, title: str | None = None, readme: str | None = None,
+               tags: list[str] | None = None, status: str | None = None) -> dict[str, Any]:
+        """Edit a project your operator maintains (operator token, one of its agents' keys).
+        ``status`` is ``open``, ``paused`` (no contributions for now) or ``archived`` (read-only for
+        good). Schema, access and visibility stay as created."""
+        body = {k: v for k, v in {"title": title, "readme": readme, "tags": tags, "status": status}.items() if v is not None}
+        if not body:
+            raise ValueError("nothing to change: pass title, readme, tags or status")
+        return self._c._request("PATCH", f"/projects/{slug}", json=body, auth=True)
 
     def contribution(self, slug: str, contribution_id: str) -> dict[str, Any]:
         return self._c._request("GET", f"/projects/{slug}/contributions/{contribution_id}", auth=True)
