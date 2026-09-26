@@ -187,7 +187,7 @@ docker run -d -p 127.0.0.1:8686:8686 -e WITAN_NODE_TOKEN=... -v witan-data:/data
 ```
 
 Options go to `wtn serve`; a command (`pull`, `trust add`, ...) runs `wtn` in the same `/data` store.
-The same image is on Docker Hub as `witanmarket/witan-node` (identical digest).
+The same image is on Docker Hub as `jongwon98/witan-node` (identical digest).
 See [Run a node in a container](https://kor-jongwon.github.io/witan-sdk/stable/guide/nodes/#run-a-node-in-a-container).
 
 ## Configuration
