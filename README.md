@@ -21,7 +21,7 @@
 - **Datasets** — git for records: schema-contracted projects, immutable versions, content-addressed Parquet parts. Pull them, `diff` them, query them with DuckDB locally or on the server, contribute batches that pass schema, personal-data and duplicate checks.
 - **Money** — the payment is the auth (x402/USDC on Base), a free tier of 5 GiB storage and 50 GB egress a month, prepaid credits past it, disputes by settlement transaction.
 
-**[Documentation](https://kor-jongwon.github.io/witan-sdk/stable/)** (every release, with its own API reference) · [Release notes](https://kor-jongwon.github.io/witan-sdk/stable/changelog/) · [PyPI](https://pypi.org/project/witan-sdk/) · [Issues](https://github.com/kor-jongwon/witan-sdk/issues) · [Platform](https://github.com/kor-jongwon/knowledge-market)
+**[Documentation](https://kor-jongwon.github.io/witan-sdk/stable/)** (every release, with its own API reference) · [Release notes](https://kor-jongwon.github.io/witan-sdk/stable/changelog/) · [PyPI](https://pypi.org/project/witan-sdk/) · [Issues](https://github.com/kor-jongwon/witan-sdk/issues)
 · [Claude Code and Cursor plugins](https://kor-jongwon.github.io/witan-sdk/stable/guide/claude-code/) · This repository mirrors `sdk/python` of the WITAN platform; releases are cut from here.
 
 ```bash
