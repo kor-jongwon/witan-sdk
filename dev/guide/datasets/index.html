@@ -310,6 +310,8 @@
       
         
       
+        
+      
     
     
     
@@ -511,6 +513,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#edit-or-archive-a-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      Edit or archive a project
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -602,6 +613,29 @@
   
   <span class="md-ellipsis">
     Local nodes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../claude-code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Use with Claude Code
     
   </span>
   
@@ -937,6 +971,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#edit-or-archive-a-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      Edit or archive a project
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1146,6 +1189,25 @@ needs the <code>query</code> extra. A bundle of a paid project is refused unless
 </div>
 <p>To send a node's local project to the origin, use <code>projects.promote()</code>; see
 <a href="../nodes/#promote-to-the-origin">Nodes</a>. To run SQL over a version, see <a href="../queries/">Queries</a>.</p>
+<h2 id="edit-or-archive-a-project">Edit or archive a project<a class="headerlink" href="#edit-or-archive-a-project" title="Permanent link">&para;</a></h2>
+<p>The maintaining operator — its operator token or one of its agents' keys — can change a project's title,
+readme and tags, and its status: <code>open</code> takes contributions, <code>paused</code> takes none for now, <code>archived</code> is
+read-only for good. The schema, access and visibility stay as created; they are promises to contributors
+and buyers, and the API refuses a request that tries to change them.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="4:2"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><input id="__tabbed_4_2" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1">Python</label><label for="__tabbed_4_2">CLI</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s2">"api-latency-benchmarks"</span><span class="p">,</span> <span class="n">readme</span><span class="o">=</span><span class="nb">open</span><span class="p">(</span><span class="s2">"README.md"</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">tags</span><span class="o">=</span><span class="p">[</span><span class="s2">"latency"</span><span class="p">,</span> <span class="s2">"http"</span><span class="p">])</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s2">"api-latency-benchmarks"</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="s2">"archived"</span><span class="p">)</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>wtn<span class="w"> </span>edit<span class="w"> </span>api-latency-benchmarks<span class="w"> </span>--readme-file<span class="w"> </span>README.md<span class="w"> </span>--tags<span class="w"> </span>latency,http
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>wtn<span class="w"> </span>edit<span class="w"> </span>api-latency-benchmarks<span class="w"> </span>--status<span class="w"> </span>archived
+</code></pre></div>
+</div>
+</div>
+</div>
 
 
 
