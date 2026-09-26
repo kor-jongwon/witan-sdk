@@ -390,11 +390,16 @@ def _signed(m: dict[str, Any]) -> str:
 
 def cmd_trust(w: Witan, a: argparse.Namespace) -> None:
     if a.action == "add":
-        r = w.trust()
+        r = w.trust(force=a.force)
 
         def human_add(r: dict[str, Any]) -> None:
             print(f"trusting {r['origin']} · keys {', '.join(r['keys'])}"
                   f"{' (new: ' + ', '.join(r['added']) + ')' if r['added'] else ' (already pinned)'} · {r['file']}")
+            if r.get("revoked"):
+                print(f"revoked by the origin, no longer trusted: {', '.join(r['revoked'])}")
+            if r.get("refused"):
+                print(f"refused: {', '.join(r['refused'])} — no pinned key endorses it. If the origin re-keyed, check the "
+                      "key id with its operator, then: wtn trust add --force", file=sys.stderr)
             if r["origin"] != r["from"]:  # trust on first use: the server at WITAN_BASE_URL spoke for that origin
                 print(f"note: these keys were fetched from {r['from']}, which says it is {r['origin']} — "
                       "pin only if you trust it to speak for that origin", file=sys.stderr)
@@ -412,7 +417,13 @@ def cmd_trust(w: Witan, a: argparse.Namespace) -> None:
             if not t:
                 print("no trusted origins — pin one with: wtn trust add (uses WITAN_BASE_URL)")
             for origin, keys in t.items():
-                print(f"{origin}  {', '.join(k['kid'] for k in keys)}")
+                def how(k: dict[str, Any]) -> str:
+                    if k.get("revoked"):
+                        return f"{k['kid']} (revoked)"
+                    if k.get("endorsedBy"):
+                        return f"{k['kid']} (endorsed by {k['endorsedBy']})"
+                    return f"{k['kid']} (forced)" if k.get("forced") else k["kid"]
+                print(f"{origin}  {', '.join(how(k) for k in keys)}")
 
         _emit(t, a.json, human)
 
@@ -575,6 +586,7 @@ def build_parser() -> argparse.ArgumentParser:
     s = common(sub.add_parser("trust", help="pin the signing keys of the origin at WITAN_BASE_URL (add), list them, or remove an origin"))
     s.add_argument("action", nargs="?", choices=["add", "list", "remove"], default="list")
     s.add_argument("origin", nargs="?", help="for remove: the origin, as wtn trust list shows it")
+    s.add_argument("--force", action="store_true", help="add: also pin keys no pinned key endorses (after checking them with the operator)")
     s.set_defaults(fn=cmd_trust)
 
     s = common(sub.add_parser("create", help="create a dataset project: on the origin (key = operator token wto_...) or a local project on a node"))
