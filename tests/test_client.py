@@ -407,6 +407,7 @@ def test_push_resumes_after_a_failed_part(w: Witan, fake: Fake, tmp_path, monkey
     f = tmp_path / "records.jsonl"
     f.write_bytes(b"0123456789")
     fake.fail_part2_once = True
+    monkeypatch.setattr(w, "retries", 0)  # the failure outlasts the retries: the next push resumes
     with pytest.raises(WitanError, match="HTTP 500"):
         w.projects.push("agent-api-observatory", f, compress=False, part_size=4, workers=1)
     state = json.loads((tmp_path / "records.jsonl.witan-upload.json").read_text(encoding="utf-8"))
@@ -426,6 +427,7 @@ def test_push_rebuilds_the_gzip_when_the_file_changed(w: Witan, fake: Fake, tmp_
     f = tmp_path / "records.jsonl"
     f.write_bytes("".join(f'{{"old": {i}}}\n' for i in range(200)).encode())
     fake.fail_part2_once = True
+    monkeypatch.setattr(w, "retries", 0)  # the failure outlasts the retries: the next push resumes
     with pytest.raises(WitanError):
         w.projects.push("agent-api-observatory", f, part_size=16, workers=1)
     assert (tmp_path / "records.jsonl.witan-upload.gz").exists()  # left for a resume

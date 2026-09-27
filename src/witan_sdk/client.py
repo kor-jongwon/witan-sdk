@@ -25,6 +25,38 @@ UNIT_TERMINAL = frozenset({"published", "rejected"})
 CONTRIBUTION_TERMINAL = frozenset({"merged", "rejected"})
 SHA256 = re.compile(r"[0-9a-f]{64}")
 
+# Retries, the same policy as the JS SDK: only requests that are safe to send twice (reads, SQL on
+# the server, writes that carry an Idempotency-Key, presigned part transfers), on network errors,
+# timeouts and these statuses; 0.3 s doubling, or the server's Retry-After when it sends one.
+RETRY_STATUS = frozenset({429, 502, 503, 504})
+PART_RETRY_STATUS = RETRY_STATUS | {500}  # object stores answer a transient failure with 500 too
+RETRY_AFTER_MAX = 30.0  # seconds: a longer Retry-After fails the call now instead of blocking
+_sleep = time.sleep  # replaced in tests
+
+
+def _backoff(attempt: int, response: httpx.Response | None = None) -> float | None:
+    """Seconds to wait before retry number ``attempt`` (1-based), or None when the server asked
+    for more than ``RETRY_AFTER_MAX`` — then the call fails with the server's answer."""
+    value = response.headers.get("retry-after") if response is not None else None
+    if value:
+        try:
+            seconds = float(value)
+        except ValueError:
+            from email.utils import parsedate_to_datetime
+
+            try:
+                seconds = parsedate_to_datetime(value).timestamp() - time.time()
+            except (TypeError, ValueError):
+                seconds = None
+        if seconds is not None:
+            return None if seconds > RETRY_AFTER_MAX else max(seconds, 0.0)
+    return 0.3 * 2 ** (attempt - 1)
+
+
+def _origin(url: str) -> str:
+    u = urlsplit(url)
+    return f"{u.scheme}://{u.netloc}"
+
 
 def default_pay_url(base_url: str) -> str:
     """Where the pay routes live when ``WITAN_PAY_URL`` is not set: a deployed origin serves
@@ -55,6 +87,11 @@ class Witan:
             deployed origin serves ``/paid``, ``/purchases`` and ``/disputes`` itself — or
             localhost:3001 when the base URL is a local development stack.
         timeout: seconds per request.
+        retries: how many times a request that is safe to send twice is retried after a network
+            error, a timeout, or 429/502/503/504 (default 2). Reads, ``query_remote``,
+            ``contribute`` with an ``idempotency_key`` and presigned part transfers qualify; other
+            writes are never retried. The wait doubles from 0.3 s, or follows ``Retry-After``.
+            ``0`` turns retries off.
         transport: an ``httpx`` transport, for tests.
     """
 
@@ -65,6 +102,7 @@ class Witan:
         base_url: str | None = None,
         pay_url: str | None = None,
         timeout: float = 30.0,
+        retries: int = 2,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         from . import __version__
@@ -73,6 +111,7 @@ class Witan:
         self.base_url = (base_url or os.environ.get("WITAN_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
         self.pay_url = (pay_url or os.environ.get("WITAN_PAY_URL") or default_pay_url(self.base_url)).rstrip("/")
         self.timeout = timeout
+        self.retries = max(0, int(retries))
         headers = {"user-agent": f"witan-sdk/{__version__}", "accept": "application/json"}
         if self.api_key:
             headers["authorization"] = f"Bearer {self.api_key}"
@@ -102,12 +141,16 @@ class Witan:
 
     # ---- transport -------------------------------------------------------
     def _request(self, method: str, path: str, *, params: dict[str, Any] | None = None,
-                 json: Any = None, auth: bool = False, headers: dict[str, str] | None = None) -> Any:
+                 json: Any = None, auth: bool = False, headers: dict[str, str] | None = None,
+                 idempotent: bool = False) -> Any:
         if auth and not self.api_key:
             raise AuthError("this call needs an agent API key (km_...): set WITAN_API_KEY or pass api_key= — "
                             "an operator issues one in the console")
         clean = {k: v for k, v in (params or {}).items() if v is not None}
-        response = self._send(self._http, method, path, self.base_url, params=clean or None, json=json, headers=headers)
+        retry = (method in ("GET", "HEAD") or idempotent
+                 or any(k.lower() == "idempotency-key" for k in (headers or {})))
+        response = self._send(self._http, method, path, self.base_url, retry=retry,
+                              params=clean or None, json=json, headers=headers)
         if response.is_redirect:
             raise WitanError(f"{self.base_url} redirected to {response.headers.get('location', '?')} — set "
                              "WITAN_BASE_URL to the origin it names (usually https://)", status=response.status_code)
@@ -117,26 +160,46 @@ class Witan:
             return None
         return _json(response)
 
-    def _send(self, http: httpx.Client, method: str, url: str, origin: str, **kw: Any) -> httpx.Response:
-        """One request; an unreachable origin or a timeout becomes a WitanError naming the origin."""
-        try:
-            return http.request(method, url, **kw)
-        except httpx.TimeoutException as exc:
-            raise WitanError(f"{origin} did not answer within {self.timeout:g}s") from exc
-        except httpx.RequestError as exc:
-            raise WitanError(f"cannot reach {origin}: {exc or type(exc).__name__} — check the URL "
-                             "(WITAN_BASE_URL / WITAN_PAY_URL) and your network") from exc
+    def _send(self, http: httpx.Client, method: str, url: str, origin: str, *, retry: bool = False,
+              statuses: frozenset[int] = RETRY_STATUS, **kw: Any) -> httpx.Response:
+        """One request, retried when ``retry`` (see ``retries``); an unreachable origin or a
+        timeout becomes a WitanError naming the origin. Returns the last response otherwise."""
+        attempts = self.retries + 1 if retry else 1
+        for attempt in range(1, attempts + 1):
+            try:
+                response = http.request(method, url, **kw)
+            except httpx.TimeoutException as exc:
+                if attempt == attempts:
+                    raise WitanError(f"{origin} did not answer within {self.timeout:g}s") from exc
+            except httpx.RequestError as exc:
+                if attempt == attempts:
+                    raise WitanError(f"cannot reach {origin}: {exc or type(exc).__name__} — check the URL "
+                                     "(WITAN_BASE_URL / WITAN_PAY_URL) and your network") from exc
+            else:
+                if response.status_code not in statuses or attempt == attempts:
+                    return response
+                delay = _backoff(attempt, response)
+                if delay is None:
+                    return response
+                response.close()
+                _sleep(delay)
+                continue
+            _sleep(_backoff(attempt) or 0.0)
+        raise AssertionError("unreachable")  # the loop returns or raises
 
     def _pay(self, method: str, path: str, **kw: Any) -> Any:
         """A call to the pay service (no API key there); non-2xx raises like any call."""
-        response = self._send(self._raw, method, f"{self.pay_url}{path}", self.pay_url, **kw)
+        response = self._send(self._raw, method, f"{self.pay_url}{path}", self.pay_url,
+                              retry=method == "GET", **kw)
         if response.status_code >= 400:
             raise_for(response)
         return _json(response)
 
     def _upload_part(self, url: str, data: bytes) -> str:
         """PUT one part to its presigned URL; returns the ETag the store assigned."""
-        response = self._raw.put(url, content=data)
+        # same bytes to the same part URL: safe to send again
+        response = self._send(self._raw, "PUT", url, _origin(url), retry=True, statuses=PART_RETRY_STATUS,
+                              content=data)
         if response.status_code >= 400:
             raise WitanError(f"part upload failed: HTTP {response.status_code}", status=response.status_code)
         etag = response.headers.get("etag")
@@ -145,11 +208,26 @@ class Witan:
         return etag.strip('"')
 
     def _download_part(self, part: dict[str, Any], parts_dir: Any) -> None:
-        """Stream one presigned part to disk and verify its sha256 before it gets its name."""
+        """Stream one presigned part to disk and verify its sha256 before it gets its name.
+        A network error or a transient status restarts the download (see ``retries``); a part
+        that fails its size or hash check does not."""
+        _check_part(part)  # the hash names the file: nothing else may reach the filesystem
+        for attempt in range(1, self.retries + 2):
+            try:
+                return self._download_part_once(part, parts_dir)
+            except httpx.TransportError as exc:
+                if attempt > self.retries:
+                    raise WitanError(f"part {part['sha256'][:12]}… download failed: "
+                                     f"{exc or type(exc).__name__}") from exc
+            except WitanError as exc:
+                if exc.status not in PART_RETRY_STATUS or attempt > self.retries:
+                    raise
+            _sleep(_backoff(attempt) or 0.0)
+
+    def _download_part_once(self, part: dict[str, Any], parts_dir: Any) -> None:
         import hashlib
         from pathlib import Path
 
-        _check_part(part)  # the hash names the file: nothing else may reach the filesystem
         limit = int(part["bytes"])
         target = Path(parts_dir) / f"{part['sha256']}.parquet"
         tmp = target.with_suffix(".parquet.part")
@@ -731,7 +809,7 @@ class Projects:
         20 s, up to 1000 rows) and the result size counts as egress — for bigger jobs use
         ``query()``, which pulls the parts and runs DuckDB locally."""
         body = {k: v for k, v in {"sql": sql, "version": version, "limit": limit}.items() if v is not None}
-        return self._c._request("POST", f"/projects/{slug}/query", json=body, auth=True)
+        return self._c._request("POST", f"/projects/{slug}/query", json=body, auth=True, idempotent=True)
 
     def diff(self, slug: str, *, from_version: int, to_version: int,
              limit: int | None = None) -> dict[str, Any]:

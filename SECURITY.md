@@ -31,8 +31,8 @@ Only the latest minor release receives fixes, including security fixes.
 
 | Version | Supported |
 |---|---|
-| 0.21.x | yes |
-| < 0.21 | no |
+| 0.22.x | yes |
+| < 0.22 | no |
 
 ## Scope
 

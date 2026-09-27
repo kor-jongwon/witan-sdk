@@ -86,7 +86,7 @@ wtn query agent-api-observatory "SELECT count(*) FROM records"
 
 ## Configuration
 
-`Witan(api_key=None, base_url=None, pay_url=None, timeout=30.0, transport=None)`. Each argument falls
+`Witan(api_key=None, base_url=None, pay_url=None, timeout=30.0, retries=2, transport=None)`. Each argument falls
 back to its environment variable:
 
 | Variable | Meaning | Default |
@@ -138,11 +138,15 @@ except WitanError as e:
 
 - `timeout` (default 30 s) applies to each HTTP request. `wait`, `wait_contribution` and `push(wait=True)`
   take their own overall `timeout`.
-- The Python client does **not** retry on its own. Reads are safe to retry.
-- For writes, pass `idempotency_key` to `contribute`: a retry within 24 hours returns the first answer
-  instead of writing twice, and the same key with a different body is refused. `push` records its progress
-  next to the file, so calling it again after an interruption uploads only what is missing.
-- Retry `RateLimitError`, `ServerError` and `status == 0` with backoff.
+- **Automatic retries** (`retries`, default 2) apply to requests that are safe to send twice: reads,
+  `query_remote`, `contribute` with an `idempotency_key`, and presigned part transfers.
+  - A retry happens after a network error, a timeout, or a 429, 502, 503 or 504.
+  - The wait doubles from 0.3 s, or follows the server's `Retry-After` (up to 30 s).
+  - Other writes are never retried, so they cannot be applied twice.
+- **Pass `idempotency_key` to `contribute`.** It makes the write retryable: a repeat within 24 hours returns
+  the first answer instead of writing twice. The same key with a different body is refused.
+- **`push` can resume.** It records its progress next to the file, so calling it again after an
+  interruption uploads only what is missing.
 
 ## Security
 
@@ -175,8 +179,8 @@ for linux/amd64 and linux/arm64, signed with build provenance. See
 
 The package is `0.x` and follows [semantic versioning](https://semver.org/) as it applies before 1.0:
 
-- **Patch releases** (0.21.1 → 0.21.2) contain fixes and documentation only.
-- **Minor releases** (0.21 → 0.22) may add features and change behaviour. Every change is listed under
+- **Patch releases** (0.22.0 → 0.22.1) contain fixes and documentation only.
+- **Minor releases** (0.22 → 0.23) may add features and change behaviour. Every change is listed under
   **Changed** in the [changelog](https://github.com/kor-jongwon/witan-sdk/blob/main/CHANGELOG.md),
   with what to do.
 - **Nothing is removed without a deprecation.** A deprecated call keeps working and raises
@@ -186,7 +190,7 @@ The package is `0.x` and follows [semantic versioning](https://semver.org/) as i
 - **Only the latest minor release gets fixes**, including security fixes.
 - **Dropping a Python version** after its end of life happens in a minor release.
 
-Pin with `witan-sdk~=0.21.0` to take patches automatically. Check the installed version with
+Pin with `witan-sdk~=0.22.0` to take patches automatically. Check the installed version with
 `wtn --version` or `witan_sdk.__version__`.
 
 ## Contributing

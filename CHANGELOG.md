@@ -14,6 +14,27 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
+## 0.22.0 — 2026-09-27
+
+### Added
+- `Witan(retries=2)`: automatic retries for requests that are safe to send twice. These are reads,
+  `projects.query_remote`, `projects.contribute` with an `idempotency_key`, payment-service reads, and
+  presigned part uploads and downloads.
+  - A retry follows a network error, a timeout, or a 429, 502, 503 or 504; part transfers also retry a 500.
+  - The wait doubles from 0.3 s, or follows the server's `Retry-After`.
+  - A `Retry-After` over 30 s fails the call at once.
+  - Other writes are never retried. The JS SDK has retried the same way since its first release.
+
+### Changed
+- A call that met one of those failures used to raise at once. It now retries first, so it can take up to
+  about a second longer before it raises (longer if the server sends `Retry-After`). To keep the old
+  behaviour, pass `Witan(retries=0)`.
+- A part download that loses its connection starts again instead of raising `httpx` errors. A part that fails
+  its size or SHA-256 check still fails at once.
+
+### Deprecated
+- Nothing.
+
 ## 0.21.2 — 2026-09-27
 
 ### Changed

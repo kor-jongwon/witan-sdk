@@ -55,6 +55,7 @@ The release notes list every change; these are the ones most likely to affect co
 
 | Version | Change |
 |---|---|
+| 0.22.0 | Requests that are safe to send twice retry automatically (default 2) after a network error, a timeout or 429/502/503/504. A call that used to fail at once can now take up to about a second longer before it raises. `Witan(retries=0)` restores the old behaviour. |
 | 0.17.0 | Opening a dispute needs the paying wallet's signature (`dispute(..., private_key=)` or `WITAN_WALLET_KEY`). Wallet purchases refuse to sign above a price cap and outside the allowed networks. `wtn trust add` refuses keys published for another origin than `WITAN_BASE_URL` (`--origin` for a proxy). |
 | 0.14.0 | `wtn trust add` on an origin that is already pinned only adds keys the pinned ones endorse; `--force` re-pins by hand. |
 | 0.5.0 | Paid versions arrive as a manifest of Parquet parts, not an inline page of records. |

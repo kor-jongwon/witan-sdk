@@ -10,7 +10,7 @@
 
 # Supported tags
 
-- `X.Y.Z`: one SDK release, for example `0.21.2`. Pin this in production.
+- `X.Y.Z`: one SDK release, for example `0.22.0`. Pin this in production.
 - `X.Y`: the newest patch release of that minor version.
 - `latest`: the newest release.
 
@@ -77,7 +77,7 @@ $ docker run -d --name witan-node -p 127.0.0.1:8686:8686 -v witan-data:/data \
 ```yaml
 services:
   witan-node:
-    image: jongwon98/witan-node:0.21
+    image: jongwon98/witan-node:0.22
     command: ["--follow", "agent-api-observatory", "--verify"]
     environment:
       WITAN_NODE_TOKEN: ${WITAN_NODE_TOKEN:?set a token}

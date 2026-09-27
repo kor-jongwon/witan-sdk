@@ -118,8 +118,8 @@ Every release also ships as a container image, built from the same wheel PyPI se
 `query` extra) and signed with a build provenance:
 
 ```
-ghcr.io/kor-jongwon/witan-node:0.21.0     # also :0.21 and :latest; linux/amd64 and linux/arm64
-jongwon98/witan-node:0.21.0               # Docker Hub: the same image, digest for digest
+ghcr.io/kor-jongwon/witan-node:0.22.0     # also :0.22 and :latest; linux/amd64 and linux/arm64
+jongwon98/witan-node:0.22.0               # Docker Hub: the same image, digest for digest
 ```
 
 Install with `pip` on a laptop or next to the agent; use the image on a server, in Kubernetes or

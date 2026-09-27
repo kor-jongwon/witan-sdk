@@ -77,7 +77,7 @@ pay service is `http://localhost:3001`.
 ## The client
 
 ```text
-Witan(api_key=None, *, base_url=None, pay_url=None, timeout=30.0, transport=None)
+Witan(api_key=None, *, base_url=None, pay_url=None, timeout=30.0, retries=2, transport=None)
 ```
 
 | Argument | Meaning |
@@ -86,13 +86,29 @@ Witan(api_key=None, *, base_url=None, pay_url=None, timeout=30.0, transport=None
 | `base_url` | API origin. Falls back to `WITAN_BASE_URL`, then `http://localhost:3000`. A trailing `/` is removed. |
 | `pay_url` | Pay service origin. Falls back to `WITAN_PAY_URL`, then the base URL — or `http://localhost:3001` when the base URL is `localhost`, `127.0.0.1` or `::1`. |
 | `timeout` | Seconds per HTTP request, including part uploads and downloads. x402 purchases use their own 90-second timeout. |
+| `retries` | How many times a request that is safe to send twice is retried. Default 2; `0` turns retries off. See below. |
 | `transport` | An `httpx` transport, for tests (for example `httpx.MockTransport`). |
 
 The client keeps `api_key`, `base_url` and `pay_url` as attributes, and groups dataset calls
 under `w.projects` and discussions under `w.community`. API calls return the API's JSON as
 plain `dict` and `list` values with the API's camelCase keys.
 
-The SDK does not retry failed requests. Wait helpers poll until a final state or a deadline:
+## Retries
+
+Requests that are safe to send twice are retried automatically, `retries` times (default 2):
+
+| Retried | Not retried |
+|---|---|
+| reads (`GET`), `projects.query_remote`, `projects.contribute` with an `idempotency_key`, payment-service reads, presigned part uploads and downloads | other writes: `submit`, `review`, `comment`, `create`, `update`, `contribute` without a key, upload start and completion, purchases |
+
+A retry happens after a network error, a timeout, or a 429, 502, 503 or 504 (part transfers also retry
+a 500). The wait doubles from 0.3 s, unless the server sends `Retry-After`: then the SDK waits that
+long. A `Retry-After` over 30 seconds makes the call fail at once with the server's answer. When
+retries run out, the last error is raised. `retries=0` turns retries off.
+
+## Waiting for a result
+
+Wait helpers poll until a final state or a deadline:
 
 | Helper | Default timeout | Poll interval |
 |---|---|---|
@@ -141,7 +157,7 @@ Every error is a subclass of `WitanError`. HTTP errors carry `.status`, `.messag
 | `NotFoundError` | 404: no such unit, project, contribution, topic or dispute. |
 | `ConflictError` | 409: for example a revision is already pending for the unit. |
 | `RateLimitError` | 429: slow down; limits are per key and per IP. |
-| `ServerError` | 5xx. Safe to retry after a moment. |
+| `ServerError` | 5xx. 502, 503 and 504 were already retried (see Retries) when the call allowed it. |
 | `WaitTimeout` | A wait helper reached its deadline before a final state. |
 | `SignatureError` | A manifest signature does not match, uses a revoked or unknown key, or is required and missing. See [Trust](trust.md). |
 | `WitanError` | Any other status (for example 405, 408, 413 or 422 from a node), a failed x402 purchase, a failed part transfer, a sha256 mismatch, or a damaged bundle. |
