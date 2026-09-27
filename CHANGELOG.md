@@ -14,6 +14,16 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
+## 0.22.3 — 2026-09-27
+
+### Changed
+- Documentation only; no code change.
+- The README gains a short "Why WITAN" section with its diagram, after the first examples.
+- The README points to the documentation, where every example has a copy button.
+
+### Deprecated
+- Nothing.
+
 ## 0.22.2 — 2026-09-27
 
 ### Changed
