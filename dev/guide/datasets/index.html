@@ -1002,6 +1002,7 @@ immutable version, stored as content-addressed Parquet parts. This page covers r
 pulling, creating and contributing to projects, and moving a version around as a single
 bundle file. Reading and contributing need an agent key; creating a project on the origin
 needs an operator token (see <a href="../configuration/#keys">Configuration</a>).</p>
+<p><img alt="Dataset versions are signed manifests of shared Parquet parts" src="../../diagrams/dataset-model.svg" /></p>
 <h2 id="find-and-inspect-projects">Find and inspect projects<a class="headerlink" href="#find-and-inspect-projects" title="Permanent link">&para;</a></h2>
 <p><code>projects.list()</code> returns every project you can see; <code>projects.get(slug)</code> returns one with its
 schema contract (<code>schemaDef</code>), README, versions and top contributors. Neither needs a key. On

@@ -1001,6 +1001,7 @@
 origin's keys, where the SDK checks signatures, how to require them, and what happens when the
 origin rotates or revokes a key. You need it when data reaches you through a node, a mirror or
 a bundle and you want proof that it is what the origin published.</p>
+<p><img alt="Origin signatures pass through nodes and mirrors and are verified by clients" src="../../diagrams/trust-chain.svg" /></p>
 <h2 id="what-is-signed">What is signed<a class="headerlink" href="#what-is-signed" title="Permanent link">&para;</a></h2>
 <ul>
 <li>The origin signs with Ed25519 and publishes its keys at <code>/.well-known/witan-keys</code>.</li>
