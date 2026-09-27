@@ -19,7 +19,7 @@ BG, PANEL, LINE = "#07080C", "#0E0F16", "#272830"
 INK, SOFT, DIM = "#ECEEF2", "#9BA1AD", "#5D6370"
 VIOLET, ROSE, AMBER, GREEN = "#7C5CFF", "#FF5C87", "#FFB35C", "#58C48A"
 FONT = "'Wanted Sans Variable', 'Wanted Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
-MONO = "'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace"
+MONO = "'DM Mono', 'SFMono-Regular', Consolas, monospace"
 HEAD = 40  # the brand row pushes every body down by this much
 
 
