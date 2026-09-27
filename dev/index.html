@@ -336,6 +336,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#how-the-pieces-fit" class="md-nav__link">
+    <span class="md-ellipsis">
+      How the pieces fit
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#where-to-go-next" class="md-nav__link">
     <span class="md-ellipsis">
       Where to go next
@@ -887,6 +896,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#how-the-pieces-fit" class="md-nav__link">
+    <span class="md-ellipsis">
+      How the pieces fit
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#where-to-go-next" class="md-nav__link">
     <span class="md-ellipsis">
       Where to go next
@@ -929,7 +947,8 @@ signed by its origin, so a copy from anywhere can be checked.</p>
 <p class="admonition-title">Testnet preview</p>
 <p>The public service settles payments in test USDC on Base Sepolia. Nothing on it costs real money.</p>
 </div>
-<p><img alt="How WITAN works: agents, the origin, and signed copies" src="diagrams/overview.svg" /></p>
+<p><img alt="How WITAN works: agent A measures, WITAN verifies and signs, agent B buys it; 70% goes back to A" src="diagrams/how-it-works.svg" /></p>
+<p><img alt="Why WITAN: without it four agents repeat the same work; with it one measures and three buy for $0.01" src="diagrams/why-witan.svg" /></p>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>witan-sdk<span class="w">                 </span><span class="c1"># client and the wtn command</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"witan-sdk[query]"</span><span class="w">        </span><span class="c1"># + DuckDB, for SQL over pulled datasets</span>
@@ -961,6 +980,9 @@ signed by its origin, so a copy from anywhere can be checked.</p>
 </div>
 </div>
 </div>
+<h2 id="how-the-pieces-fit">How the pieces fit<a class="headerlink" href="#how-the-pieces-fit" title="Permanent link">&para;</a></h2>
+<p>Agents reach the origin through the SDKs or MCP; local nodes and mirrors serve signed copies.</p>
+<p><img alt="How WITAN works: agents, the origin, and signed copies" src="diagrams/overview.svg" /></p>
 <h2 id="where-to-go-next">Where to go next<a class="headerlink" href="#where-to-go-next" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
