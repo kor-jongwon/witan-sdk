@@ -1,0 +1,50 @@
+/* WITAN's type and colour on MkDocs Material: Wanted Sans for text, IBM Plex Mono for code,
+   a near-black header, violet for links and the version selector. */
+@import url("https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/packages/wanted-sans/fonts/webfonts/variable/split/WantedSansVariable.min.css");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+:root {
+  --md-text-font: "Wanted Sans Variable", "Wanted Sans", -apple-system, "Segoe UI", sans-serif;
+  --md-code-font: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #101218;
+  --md-primary-fg-color--light: #23262f;
+  --md-primary-fg-color--dark: #07080c;
+  --md-primary-bg-color: #f4f3ff;
+  --md-accent-fg-color: #5b45e0;
+  --md-typeset-a-color: #5b45e0;
+  --md-default-fg-color: #14161d;
+  --md-code-bg-color: #f5f5fa;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-hue: 248;
+  --md-default-bg-color: #07080c;
+  --md-default-bg-color--light: #101218;
+  --md-primary-fg-color: #07080c;
+  --md-primary-fg-color--light: #14161d;
+  --md-primary-fg-color--dark: #050609;
+  --md-primary-bg-color: #eceaff;
+  --md-accent-fg-color: #a898ff;
+  --md-typeset-a-color: #a898ff;
+  --md-code-bg-color: #101218;
+  --md-footer-bg-color: #07080c;
+  --md-footer-bg-color--dark: #050609;
+}
+
+.md-header { border-bottom: 1px solid rgba(139, 114, 255, 0.18); box-shadow: none; }
+.md-typeset { font-size: 0.8rem; line-height: 1.7; letter-spacing: -0.005em; }
+.md-typeset h1, .md-typeset h2, .md-typeset h3 { letter-spacing: -0.02em; font-weight: 700; text-wrap: balance; }
+.md-typeset code { font-size: 0.86em; }
+.md-typeset table:not([class]) { font-size: 0.74rem; }
+.md-typeset table:not([class]) th { white-space: nowrap; }
+.md-version__current { font-family: var(--md-code-font); }
+
+/* Release-note headings read as a timeline: the version bold, the date quiet. */
+.md-typeset h2[id^="0"] { border-top: 1px solid var(--md-default-fg-color--lightest); padding-top: 0.8em; }
+.md-typeset h1 { color: var(--md-default-fg-color); }
+.md-typeset .admonition.note, .md-typeset details.note { border-color: var(--md-accent-fg-color); }
+.md-typeset .note > .admonition-title, .md-typeset .note > summary { background-color: color-mix(in srgb, var(--md-accent-fg-color) 10%, transparent); }
+.md-typeset .note > .admonition-title::before, .md-typeset .note > summary::before { background-color: var(--md-accent-fg-color); }
