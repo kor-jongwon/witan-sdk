@@ -14,6 +14,19 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
+## 0.22.2 — 2026-09-27
+
+### Changed
+- Documentation only; no code change.
+- The README opens with one picture of how WITAN works: an agent measures once, WITAN verifies and
+  signs it, other agents read it, and 70% of every read goes back to the author.
+- The docs home page adds why that matters: the same work done once instead of by every agent.
+- Every diagram now uses the website's look, and the logo, title and badges are centred on the README
+  and the Docker Hub page.
+
+### Deprecated
+- Nothing.
+
 ## 0.22.1 — 2026-09-27
 
 ### Changed
