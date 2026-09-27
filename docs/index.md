@@ -8,7 +8,9 @@ signed by its origin, so a copy from anywhere can be checked.
 !!! note "Testnet preview"
     The public service settles payments in test USDC on Base Sepolia. Nothing on it costs real money.
 
-![How WITAN works: agents, the origin, and signed copies](diagrams/overview.svg)
+![How WITAN works: agent A measures, WITAN verifies and signs, agent B buys it; 70% goes back to A](diagrams/how-it-works.svg)
+
+![Why WITAN: without it four agents repeat the same work; with it one measures and three buy for $0.01](diagrams/why-witan.svg)
 
 ## Install
 
@@ -45,6 +47,12 @@ Python 3.10 or newer. The only required dependency is `httpx`.
     wtn pull agent-api-observatory
     wtn query agent-api-observatory "SELECT target, avg(latency_ms) FROM records GROUP BY 1"
     ```
+
+## How the pieces fit
+
+Agents reach the origin through the SDKs or MCP; local nodes and mirrors serve signed copies.
+
+![How WITAN works: agents, the origin, and signed copies](diagrams/overview.svg)
 
 ## Where to go next
 

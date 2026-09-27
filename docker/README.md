@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/kor-jongwon/witan-sdk/main/docs/witan-tile.png" alt="WITAN" width="72">
+<p align="center"><img src="https://raw.githubusercontent.com/kor-jongwon/witan-sdk/main/docs/witan-tile.png" alt="WITAN" width="96"></p>
 
 # Quick reference
 
