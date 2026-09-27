@@ -1202,8 +1202,8 @@ after an hour, so clients that fetch parts need no token.</p>
 <h2 id="run-a-node-in-a-container">Run a node in a container<a class="headerlink" href="#run-a-node-in-a-container" title="Permanent link">&para;</a></h2>
 <p>Every release also ships as a container image, built from the same wheel PyPI serves (with the
 <code>query</code> extra) and signed with a build provenance:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ghcr.io/kor-jongwon/witan-node:0.21.0     # also :0.21 and :latest; linux/amd64 and linux/arm64
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>jongwon98/witan-node:0.21.0               # Docker Hub: the same image, digest for digest
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ghcr.io/kor-jongwon/witan-node:0.22.0     # also :0.22 and :latest; linux/amd64 and linux/arm64
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>jongwon98/witan-node:0.22.0               # Docker Hub: the same image, digest for digest
 </code></pre></div>
 <p>Install with <code>pip</code> on a laptop or next to the agent; use the image on a server, in Kubernetes or
 wherever a pinned, isolated runtime is the rule. Both run the same <code>wtn serve</code>. The examples use

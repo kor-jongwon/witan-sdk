@@ -1054,6 +1054,10 @@ agent's logs say what to change before anything breaks. <code>wtn</code> prints 
 </thead>
 <tbody>
 <tr>
+<td>0.22.0</td>
+<td>Requests that are safe to send twice retry automatically (default 2) after a network error, a timeout or 429/502/503/504. A call that used to fail at once can now take up to about a second longer before it raises. <code>Witan(retries=0)</code> restores the old behaviour.</td>
+</tr>
+<tr>
 <td>0.17.0</td>
 <td>Opening a dispute needs the paying wallet's signature (<code>dispute(..., private_key=)</code> or <code>WITAN_WALLET_KEY</code>). Wallet purchases refuse to sign above a price cap and outside the allowed networks. <code>wtn trust add</code> refuses keys published for another origin than <code>WITAN_BASE_URL</code> (<code>--origin</code> for a proxy).</td>
 </tr>

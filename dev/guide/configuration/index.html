@@ -441,6 +441,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#retries" class="md-nav__link">
+    <span class="md-ellipsis">
+      Retries
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#waiting-for-a-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      Waiting for a result
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#closing-the-client" class="md-nav__link">
     <span class="md-ellipsis">
       Closing the client
@@ -936,6 +954,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#retries" class="md-nav__link">
+    <span class="md-ellipsis">
+      Retries
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#waiting-for-a-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      Waiting for a result
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#closing-the-client" class="md-nav__link">
     <span class="md-ellipsis">
       Closing the client
@@ -1119,7 +1155,7 @@ origin you use. A deployed origin serves the pay routes (<code>/paid</code>, <co
 itself, so <code>WITAN_PAY_URL</code> is only needed when they live elsewhere; with a local base URL the
 pay service is <code>http://localhost:3001</code>.</p>
 <h2 id="the-client">The client<a class="headerlink" href="#the-client" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Witan(api_key=None, *, base_url=None, pay_url=None, timeout=30.0, transport=None)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Witan(api_key=None, *, base_url=None, pay_url=None, timeout=30.0, retries=2, transport=None)
 </code></pre></div>
 <table>
 <thead>
@@ -1146,6 +1182,10 @@ pay service is <code>http://localhost:3001</code>.</p>
 <td>Seconds per HTTP request, including part uploads and downloads. x402 purchases use their own 90-second timeout.</td>
 </tr>
 <tr>
+<td><code>retries</code></td>
+<td>How many times a request that is safe to send twice is retried. Default 2; <code>0</code> turns retries off. See below.</td>
+</tr>
+<tr>
 <td><code>transport</code></td>
 <td>An <code>httpx</code> transport, for tests (for example <code>httpx.MockTransport</code>).</td>
 </tr>
@@ -1154,7 +1194,28 @@ pay service is <code>http://localhost:3001</code>.</p>
 <p>The client keeps <code>api_key</code>, <code>base_url</code> and <code>pay_url</code> as attributes, and groups dataset calls
 under <code>w.projects</code> and discussions under <code>w.community</code>. API calls return the API's JSON as
 plain <code>dict</code> and <code>list</code> values with the API's camelCase keys.</p>
-<p>The SDK does not retry failed requests. Wait helpers poll until a final state or a deadline:</p>
+<h2 id="retries">Retries<a class="headerlink" href="#retries" title="Permanent link">&para;</a></h2>
+<p>Requests that are safe to send twice are retried automatically, <code>retries</code> times (default 2):</p>
+<table>
+<thead>
+<tr>
+<th>Retried</th>
+<th>Not retried</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>reads (<code>GET</code>), <code>projects.query_remote</code>, <code>projects.contribute</code> with an <code>idempotency_key</code>, payment-service reads, presigned part uploads and downloads</td>
+<td>other writes: <code>submit</code>, <code>review</code>, <code>comment</code>, <code>create</code>, <code>update</code>, <code>contribute</code> without a key, upload start and completion, purchases</td>
+</tr>
+</tbody>
+</table>
+<p>A retry happens after a network error, a timeout, or a 429, 502, 503 or 504 (part transfers also retry
+a 500). The wait doubles from 0.3 s, unless the server sends <code>Retry-After</code>: then the SDK waits that
+long. A <code>Retry-After</code> over 30 seconds makes the call fail at once with the server's answer. When
+retries run out, the last error is raised. <code>retries=0</code> turns retries off.</p>
+<h2 id="waiting-for-a-result">Waiting for a result<a class="headerlink" href="#waiting-for-a-result" title="Permanent link">&para;</a></h2>
+<p>Wait helpers poll until a final state or a deadline:</p>
 <table>
 <thead>
 <tr>
@@ -1237,7 +1298,7 @@ not JSON — <code>wtn</code> prints <code>error: &lt;message&gt;</code> to stde
 </tr>
 <tr>
 <td><code>ServerError</code></td>
-<td>5xx. Safe to retry after a moment.</td>
+<td>5xx. 502, 503 and 504 were already retried (see Retries) when the call allowed it.</td>
 </tr>
 <tr>
 <td><code>WaitTimeout</code></td>
