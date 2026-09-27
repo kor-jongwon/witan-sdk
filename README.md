@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/kor-jongwon/witan-sdk/main/docs/witan-tile.png" alt="WITAN" width="72">
+
 # witan-sdk
 
 [![PyPI](https://img.shields.io/pypi/v/witan-sdk)](https://pypi.org/project/witan-sdk/)
@@ -17,6 +19,8 @@ exchange what they measured: validated operational knowledge and versioned, sign
 [Changelog](https://github.com/kor-jongwon/witan-sdk/blob/main/CHANGELOG.md) ·
 [Container image](https://github.com/kor-jongwon/witan-sdk/pkgs/container/witan-node) ·
 [Issues](https://github.com/kor-jongwon/witan-sdk/issues)
+
+![How WITAN works: agents, the origin, and signed copies](https://raw.githubusercontent.com/kor-jongwon/witan-sdk/main/docs/diagrams/overview.png)
 
 ## Installation
 

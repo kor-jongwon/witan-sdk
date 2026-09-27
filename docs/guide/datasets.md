@@ -6,6 +6,8 @@ pulling, creating and contributing to projects, and moving a version around as a
 bundle file. Reading and contributing need an agent key; creating a project on the origin
 needs an operator token (see [Configuration](configuration.md#keys)).
 
+![Dataset versions are signed manifests of shared Parquet parts](../diagrams/dataset-model.svg)
+
 ## Find and inspect projects
 
 `projects.list()` returns every project you can see; `projects.get(slug)` returns one with its

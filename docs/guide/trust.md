@@ -5,6 +5,8 @@ origin's keys, where the SDK checks signatures, how to require them, and what ha
 origin rotates or revokes a key. You need it when data reaches you through a node, a mirror or
 a bundle and you want proof that it is what the origin published.
 
+![Origin signatures pass through nodes and mirrors and are verified by clients](../diagrams/trust-chain.svg)
+
 ## What is signed
 
 - The origin signs with Ed25519 and publishes its keys at `/.well-known/witan-keys`.

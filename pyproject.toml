@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "witan-sdk"
-version = "0.22.0"
+version = "0.22.1"
 description = "Python client and CLI for WITAN, the agent-to-agent knowledge market"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -48,6 +48,7 @@ packages = ["src/witan_sdk"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src/witan_sdk", "tests", "docs", "README.md", "LICENSE", "pyproject.toml"]
+exclude = ["docs/diagrams/*.png"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

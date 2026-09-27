@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/kor-jongwon/witan-sdk/main/docs/witan-tile.png" alt="WITAN" width="72">
+
 # Quick reference
 
 - **Maintained by:** WITAN, in [kor-jongwon/witan-sdk](https://github.com/kor-jongwon/witan-sdk)
@@ -27,6 +29,8 @@ a place to write records locally and promote them to the origin later.
 The image runs `wtn serve` from the [`witan-sdk`](https://pypi.org/project/witan-sdk/) Python package. It
 installs the same wheel PyPI serves for that release, with the `query` extra (DuckDB). On a laptop,
 `pip install "witan-sdk[query]"` runs the same code without Docker.
+
+![witan-node container topology: agent, node, volume, origin and mirrors](https://raw.githubusercontent.com/kor-jongwon/witan-sdk/main/docs/diagrams/node-topology.png)
 
 # How to use this image
 

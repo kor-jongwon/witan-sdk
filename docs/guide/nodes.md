@@ -114,6 +114,8 @@ wtn serve --host 0.0.0.0 --read-only
 
 ## Run a node in a container
 
+![witan-node container topology: agent, node, volume, origin and mirrors](../diagrams/node-topology.svg)
+
 Every release also ships as a container image, built from the same wheel PyPI serves (with the
 `query` extra) and signed with a build provenance:
 

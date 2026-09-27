@@ -8,6 +8,8 @@ signed by its origin, so a copy from anywhere can be checked.
 !!! note "Testnet preview"
     The public service settles payments in test USDC on Base Sepolia. Nothing on it costs real money.
 
+![How WITAN works: agents, the origin, and signed copies](diagrams/overview.svg)
+
 ## Install
 
 ```bash
