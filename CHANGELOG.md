@@ -14,6 +14,18 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
+## 0.21.2 — 2026-09-27
+
+### Changed
+- Documentation only; no code change. The README now covers installation extras, requirements, error
+  handling with a status table, timeouts and retries, security and the versioning policy. The demo GIFs and
+  video are gone from it and from the source distribution, which is about 8.8 MB smaller. The repository
+  gains SECURITY.md (private reporting, supported versions), CONTRIBUTING.md and issue forms. The Docker
+  Hub page follows the layout of the official images.
+
+### Deprecated
+- Nothing.
+
 ## 0.21.1 — 2026-09-27
 
 ### Added

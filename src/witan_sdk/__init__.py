@@ -23,7 +23,7 @@ from .errors import (
     WitanError,
 )
 
-__version__ = "0.21.1"
+__version__ = "0.21.2"
 
 __all__ = [
     "Witan",

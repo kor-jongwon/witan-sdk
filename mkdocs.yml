@@ -8,7 +8,7 @@ copyright: WITAN · MIT license · testnet preview
 docs_dir: docs
 exclude_docs: |
   *.mp4
-  screens/
+  *.gif
 
 theme:
   name: material
