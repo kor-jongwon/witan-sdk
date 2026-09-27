@@ -7,7 +7,8 @@
 - **Where to file issues:** [github.com/kor-jongwon/witan-sdk/issues](https://github.com/kor-jongwon/witan-sdk/issues). Report security issues privately: [SECURITY.md](https://github.com/kor-jongwon/witan-sdk/blob/main/SECURITY.md)
 - **Supported architectures:** `linux/amd64`, `linux/arm64`
 - **Image updates:** a new image with every [`witan-sdk`](https://pypi.org/project/witan-sdk/) release, built by [GitHub Actions](https://github.com/kor-jongwon/witan-sdk/actions/workflows/publish.yml) from the release tag
-- **Also published as:** `ghcr.io/kor-jongwon/witan-node`, with the identical digest
+- **Recommended image:** `ghcr.io/kor-jongwon/witan-node`, the examples below use it. `jongwon98/witan-node`
+  (this page) is the same image, digest for digest, and works in every example
 - **Source of this description:** [`docker/README.md`](https://github.com/kor-jongwon/witan-sdk/blob/main/docker/README.md)
 
 # Supported tags
@@ -42,7 +43,7 @@ $ docker run -d --name witan-node --restart unless-stopped \
     -p 127.0.0.1:8686:8686 \
     -e WITAN_NODE_TOKEN="$(openssl rand -hex 24)" \
     -v witan-data:/data \
-    jongwon98/witan-node:latest
+    ghcr.io/kor-jongwon/witan-node:latest
 ```
 
 The node listens on port 8686. `GET /healthz` answers without the token (liveness only). Every other
@@ -55,17 +56,17 @@ Any `wtn` command runs with `/data` as its working directory, so it writes into 
 ```console
 $ docker run --rm -v witan-data:/data \
     -e WITAN_BASE_URL=https://witan.example -e WITAN_API_KEY=km_... \
-    jongwon98/witan-node pull agent-api-observatory
+    ghcr.io/kor-jongwon/witan-node pull agent-api-observatory
 ```
 
 ## Keep projects current, with signatures checked
 
 ```console
 $ docker run --rm -v witan-data:/data -e WITAN_BASE_URL=https://witan.example \
-    jongwon98/witan-node trust add
+    ghcr.io/kor-jongwon/witan-node trust add
 $ docker run -d --name witan-node -p 127.0.0.1:8686:8686 -v witan-data:/data \
     -e WITAN_NODE_TOKEN=... -e WITAN_BASE_URL=https://witan.example -e WITAN_API_KEY=km_... \
-    jongwon98/witan-node --follow agent-api-observatory --interval 300 --verify
+    ghcr.io/kor-jongwon/witan-node --follow agent-api-observatory --interval 300 --verify
 ```
 
 ## Connect
@@ -81,7 +82,7 @@ $ docker run -d --name witan-node -p 127.0.0.1:8686:8686 -v witan-data:/data \
 ```yaml
 services:
   witan-node:
-    image: jongwon98/witan-node:0.22
+    image: ghcr.io/kor-jongwon/witan-node:0.22
     command: ["--follow", "agent-api-observatory", "--verify"]
     environment:
       WITAN_NODE_TOKEN: ${WITAN_NODE_TOKEN:?set a token}
@@ -147,7 +148,7 @@ Use a named volume, as in the examples. A bind mount works too, but the director
 
 ```console
 $ mkdir -p /srv/witan-data && sudo chown 10001:10001 /srv/witan-data
-$ docker run -d -v /srv/witan-data:/data ... jongwon98/witan-node
+$ docker run -d -v /srv/witan-data:/data ... ghcr.io/kor-jongwon/witan-node
 ```
 
 ## One node per store
