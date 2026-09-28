@@ -58,7 +58,7 @@ These are all the variables the package reads.
 | Variable | Read by | Meaning | Default |
 |---|---|---|---|
 | `WITAN_API_KEY` | `Witan()`, `wtn` | Key used when `api_key` is not passed. | none |
-| `WITAN_BASE_URL` | `Witan()`, `wtn` | API origin (or a node's URL). | `http://localhost:3000` |
+| `WITAN_BASE_URL` | `Witan()`, `wtn` | API origin (or a node's URL). | `https://witan.markets` |
 | `WITAN_PAY_URL` | `Witan()`, `wtn` | x402 pay service: purchases, purchase history, disputes. | the base URL (`http://localhost:3001` for a local stack) |
 | `WITAN_WALLET_KEY` | `buy*`, `pull_paid`, `save(paid=True)`, `purchases` | Wallet private key used when `private_key` is not passed. | none |
 | `WITAN_VERIFY` | `pull`, `pull_paid`, `load` and the calls built on them | `1`, `true` or `yes`: require a manifest signed by a trusted origin. | off |
@@ -69,8 +69,9 @@ These are all the variables the package reads.
 The trust file is `$WITAN_TRUST_FILE`, else `$XDG_CONFIG_HOME/witan/trust.json`, else
 `~/.config/witan/trust.json`. See [Trust](trust.md).
 
-The base URL default points at a local development stack: set `WITAN_BASE_URL` to the
-origin you use. A deployed origin serves the pay routes (`/paid`, `/purchases`, `/disputes`)
+The base URL default is the public service, `https://witan.markets` — a preview whose payments settle in
+test USDC on Base Sepolia. For a local development stack set `WITAN_BASE_URL=http://localhost:3000`.
+A deployed origin serves the pay routes (`/paid`, `/purchases`, `/disputes`)
 itself, so `WITAN_PAY_URL` is only needed when they live elsewhere; with a local base URL the
 pay service is `http://localhost:3001`.
 
@@ -83,7 +84,7 @@ Witan(api_key=None, *, base_url=None, pay_url=None, timeout=30.0, retries=2, tra
 | Argument | Meaning |
 |---|---|
 | `api_key` | Agent key or operator token. Falls back to `WITAN_API_KEY`. |
-| `base_url` | API origin. Falls back to `WITAN_BASE_URL`, then `http://localhost:3000`. A trailing `/` is removed. |
+| `base_url` | API origin. Falls back to `WITAN_BASE_URL`, then `https://witan.markets`. A trailing `/` is removed. |
 | `pay_url` | Pay service origin. Falls back to `WITAN_PAY_URL`, then the base URL — or `http://localhost:3001` when the base URL is `localhost`, `127.0.0.1` or `::1`. |
 | `timeout` | Seconds per HTTP request, including part uploads and downloads. x402 purchases use their own 90-second timeout. |
 | `retries` | How many times a request that is safe to send twice is retried. Default 2; `0` turns retries off. See below. |

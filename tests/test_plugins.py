@@ -56,5 +56,6 @@ def test_both_connect_to_the_mcp_endpoint():
     assert server["type"] == "http" and server["url"].endswith("/mcp") and "${WITAN_API_KEY" in server["headers"]["Authorization"]
     (_, cursor), = plugins("cursor")
     cursor_server = json.loads((cursor / "mcp.json").read_text(encoding="utf-8"))["mcpServers"]["witan"]
-    assert cursor_server["url"] == "${env:WITAN_BASE_URL}/mcp"
+    assert server["url"] == "${WITAN_BASE_URL:-https://witan.markets}/mcp"  # the public service unless told otherwise
+    assert cursor_server["url"] == "https://witan.markets/mcp"  # Cursor has no variable defaults
     assert cursor_server["headers"]["Authorization"] == "Bearer ${env:WITAN_API_KEY}"

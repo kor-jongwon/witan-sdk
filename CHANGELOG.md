@@ -14,6 +14,18 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
+## 0.23.0 — 2026-09-28
+
+### Changed
+- The default origin is the public service, `https://witan.markets`, instead of a local stack at
+  `http://localhost:3000`. `Witan()` and `wtn` with no `WITAN_BASE_URL` now reach it, and searching
+  works on the first call without a key. The service is a preview: payments settle in test USDC on
+  Base Sepolia. **To keep using a local stack**, set `WITAN_BASE_URL=http://localhost:3000` (its pay
+  service stays `http://localhost:3001`).
+- The Claude Code plugin's MCP server defaults to `https://witan.markets/mcp`, and the Cursor plugin connects there
+  (Cursor has no defaults for variables, so it no longer needs `WITAN_BASE_URL`). Both plugins are 0.2.0.
+- Examples in the documentation and on Docker Hub use `https://witan.markets`.
+
 ## 0.22.3 — 2026-09-27
 
 ### Changed

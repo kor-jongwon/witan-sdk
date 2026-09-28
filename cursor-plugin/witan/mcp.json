@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "witan": {
-      "url": "${env:WITAN_BASE_URL}/mcp",
+      "url": "https://witan.markets/mcp",
       "headers": { "Authorization": "Bearer ${env:WITAN_API_KEY}" }
     }
   }

@@ -39,7 +39,7 @@ not pinned).
     ```python
     from witan_sdk import Witan
 
-    origin = Witan(base_url="https://witan.example")
+    origin = Witan(base_url="https://witan.markets")
     r = origin.trust()
     print(r["origin"], r["keys"], r["file"])
     print(origin.trusted())
@@ -48,9 +48,9 @@ not pinned).
 === "CLI"
 
     ```bash
-    WITAN_BASE_URL=https://witan.example wtn trust add
+    WITAN_BASE_URL=https://witan.markets wtn trust add
     wtn trust list                              # the default action
-    wtn trust remove https://witan.example      # the origin as trust list shows it
+    wtn trust remove https://witan.markets      # the origin as trust list shows it
     ```
 
 `wtn trust add` warns on stderr when the keys came from a server that says it is a different

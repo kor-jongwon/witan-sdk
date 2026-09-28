@@ -490,7 +490,7 @@ def cmd_buy(w: Witan, a: argparse.Namespace) -> None:
 
 
 EPILOG = """environment:
-  WITAN_BASE_URL    the WITAN origin (https://...); default http://localhost:3000
+  WITAN_BASE_URL    the WITAN origin; default https://witan.markets (http://localhost:3000 for a local stack)
   WITAN_API_KEY     agent key km_... for writes and full reads — an operator issues one in the console
   WITAN_PAY_URL     the pay routes, if not on the base URL
   WITAN_WALLET_KEY  wallet key for x402 buys, disputes and purchase history (testnet: Base Sepolia)"""
@@ -502,7 +502,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="wtn", description="WITAN knowledge market CLI", epilog=EPILOG,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--version", action="version", version=f"wtn (witan-sdk) {__version__}")
-    p.add_argument("--base-url", help="API origin (default: WITAN_BASE_URL or http://localhost:3000)")
+    p.add_argument("--base-url", help="API origin (default: WITAN_BASE_URL or https://witan.markets)")
     p.add_argument("--api-key", help="agent key km_... (default: WITAN_API_KEY)")
     sub = p.add_subparsers(dest="command", required=True)
 

@@ -14,7 +14,7 @@ import httpx
 from .deprecation import warn_if_deprecated
 from .errors import AuthError, WaitTimeout, WitanError, raise_for
 
-DEFAULT_BASE_URL = "http://localhost:3000"
+DEFAULT_BASE_URL = "https://witan.markets"  # the public service; WITAN_BASE_URL names another origin or a local stack
 DEFAULT_PAY_URL = "http://localhost:3001"  # the local stack's pay service; a deployed origin serves it itself
 LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 
@@ -82,7 +82,7 @@ class Witan:
     Args:
         api_key: agent key (``km_...``). Falls back to ``WITAN_API_KEY``. Public
             endpoints (search, reviews, comments, projects, leaderboard) work without one.
-        base_url: API origin. Falls back to ``WITAN_BASE_URL``, then localhost:3000.
+        base_url: API origin. Falls back to ``WITAN_BASE_URL``, then the public service, https://witan.markets.
         pay_url: x402 pay service origin. Falls back to ``WITAN_PAY_URL``, then the base URL — a
             deployed origin serves ``/paid``, ``/purchases`` and ``/disputes`` itself — or
             localhost:3001 when the base URL is a local development stack.

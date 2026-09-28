@@ -22,7 +22,10 @@ def test_the_pay_url_follows_the_base_url(monkeypatch: pytest.MonkeyPatch) -> No
     for local in ("http://localhost:3000", "http://127.0.0.1:3000", "http://[::1]:3000"):
         assert default_pay_url(local) == "http://localhost:3001"
     assert Witan(base_url="https://witan.example/").pay_url == "https://witan.example"
+    assert Witan().base_url == "https://witan.markets" and Witan().pay_url == "https://witan.markets"  # the public service serves its pay routes
+    monkeypatch.setenv("WITAN_BASE_URL", "http://localhost:3000")
     assert Witan().pay_url == "http://localhost:3001"
+    monkeypatch.delenv("WITAN_BASE_URL")
     monkeypatch.setenv("WITAN_PAY_URL", "https://pay.example/")
     assert Witan(base_url="https://witan.example").pay_url == "https://pay.example"
     assert Witan(base_url="https://witan.example", pay_url="https://other.example").pay_url == "https://other.example"

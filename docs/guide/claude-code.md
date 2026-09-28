@@ -11,11 +11,11 @@ facts such as latencies, rate limits, parameters that work, and failures — and
 /plugin install witan@witan
 ```
 
-Claude Code reads two environment variables when it starts the MCP connection:
+Claude Code reads two environment variables when it starts the MCP connection; both are optional:
 
 | Variable | What | Default |
 |---|---|---|
-| `WITAN_BASE_URL` | the WITAN origin | `http://localhost:3000` |
+| `WITAN_BASE_URL` | the WITAN origin (`http://localhost:3000` for a local stack) | `https://witan.markets`, the public service |
 | `WITAN_API_KEY` | an agent key (`km_...`) from the operator console | none — searching and listing work without one |
 
 The same two variables configure the `wtn` command line and the Python client, so a session can mix

@@ -55,17 +55,17 @@ Any `wtn` command runs with `/data` as its working directory, so it writes into 
 
 ```console
 $ docker run --rm -v witan-data:/data \
-    -e WITAN_BASE_URL=https://witan.example -e WITAN_API_KEY=km_... \
+    -e WITAN_BASE_URL=https://witan.markets -e WITAN_API_KEY=km_... \
     ghcr.io/kor-jongwon/witan-node pull agent-api-observatory
 ```
 
 ## Keep projects current, with signatures checked
 
 ```console
-$ docker run --rm -v witan-data:/data -e WITAN_BASE_URL=https://witan.example \
+$ docker run --rm -v witan-data:/data -e WITAN_BASE_URL=https://witan.markets \
     ghcr.io/kor-jongwon/witan-node trust add
 $ docker run -d --name witan-node -p 127.0.0.1:8686:8686 -v witan-data:/data \
-    -e WITAN_NODE_TOKEN=... -e WITAN_BASE_URL=https://witan.example -e WITAN_API_KEY=km_... \
+    -e WITAN_NODE_TOKEN=... -e WITAN_BASE_URL=https://witan.markets -e WITAN_API_KEY=km_... \
     ghcr.io/kor-jongwon/witan-node --follow agent-api-observatory --interval 300 --verify
 ```
 
@@ -86,7 +86,7 @@ services:
     command: ["--follow", "agent-api-observatory", "--verify"]
     environment:
       WITAN_NODE_TOKEN: ${WITAN_NODE_TOKEN:?set a token}
-      WITAN_BASE_URL: https://witan.example
+      WITAN_BASE_URL: https://witan.markets
       WITAN_API_KEY: ${WITAN_API_KEY}
     ports: ["127.0.0.1:8686:8686"]
     volumes: ["witan-data:/data"]

@@ -92,7 +92,7 @@ node keeps the previous one. A local project cannot be followed.
 
 ```bash
 export WITAN_API_KEY=km_...
-wtn --base-url https://witan.example serve --follow api-latency-benchmarks --interval 300 --verify
+wtn --base-url https://witan.markets serve --follow api-latency-benchmarks --interval 300 --verify
 ```
 
 `--upstream URL` follows another node (a mirror) instead of the origin, with
@@ -131,7 +131,7 @@ GHCR; `jongwon98/witan-node` works anywhere they do.
 ```bash
 docker volume create witan-data
 # fill the store: any wtn command runs in /data, the directory serve reads
-docker run --rm -v witan-data:/data -e WITAN_BASE_URL=https://witan.example -e WITAN_API_KEY=km_... \
+docker run --rm -v witan-data:/data -e WITAN_BASE_URL=https://witan.markets -e WITAN_API_KEY=km_... \
   ghcr.io/kor-jongwon/witan-node pull api-latency-benchmarks@12
 # serve it
 docker run -d --name witan-node --restart unless-stopped \
@@ -162,9 +162,9 @@ Publish the port on `127.0.0.1` unless other machines should reach the node.
 Follow the origin with signatures checked:
 
 ```bash
-docker run --rm -v witan-data:/data -e WITAN_BASE_URL=https://witan.example ghcr.io/kor-jongwon/witan-node trust add
+docker run --rm -v witan-data:/data -e WITAN_BASE_URL=https://witan.markets ghcr.io/kor-jongwon/witan-node trust add
 docker run -d --name witan-node -p 127.0.0.1:8686:8686 -v witan-data:/data \
-  -e WITAN_NODE_TOKEN=... -e WITAN_BASE_URL=https://witan.example -e WITAN_API_KEY=km_... \
+  -e WITAN_NODE_TOKEN=... -e WITAN_BASE_URL=https://witan.markets -e WITAN_API_KEY=km_... \
   ghcr.io/kor-jongwon/witan-node --follow api-latency-benchmarks --interval 300 --verify
 ```
 
@@ -177,7 +177,7 @@ services:
     command: ["--follow", "api-latency-benchmarks", "--verify"]
     environment:
       WITAN_NODE_TOKEN: ${WITAN_NODE_TOKEN:?set a token}
-      WITAN_BASE_URL: https://witan.example
+      WITAN_BASE_URL: https://witan.markets
       WITAN_API_KEY: ${WITAN_API_KEY}
     ports: ["127.0.0.1:8686:8686"]
     volumes: ["witan-data:/data"]
@@ -256,7 +256,7 @@ carries `promoted: {from, version, to, records}`. Promoting needs the `query` ex
 === "Python"
 
     ```python
-    origin = Witan("km_...", base_url="https://witan.example")
+    origin = Witan("km_...", base_url="https://witan.markets")
     r = origin.projects.promote("agent-runs", to="crawler-runs")
     print(r["status"], r["promoted"])
     ```
@@ -264,7 +264,7 @@ carries `promoted: {from, version, to, records}`. Promoting needs the `query` ex
 === "CLI"
 
     ```bash
-    wtn --base-url https://witan.example promote agent-runs --to crawler-runs --store witan-data
+    wtn --base-url https://witan.markets promote agent-runs --to crawler-runs --store witan-data
     ```
 
 Node versions are unsigned, so run `promote` with `WITAN_VERIFY` unset (see [Trust](trust.md)).

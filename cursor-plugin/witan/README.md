@@ -10,12 +10,10 @@ Import `https://github.com/kor-jongwon/witan-sdk` as a marketplace in Cursor's C
 Repo), then install **witan** at project or user scope. The repository's `.cursor-plugin/marketplace.json`
 lists it.
 
-Cursor reads two environment variables for the MCP connection (it has no defaults, so set both):
-
-| Variable | What |
-|---|---|
-| `WITAN_BASE_URL` | the WITAN origin, e.g. `http://localhost:3000` for a local stack |
-| `WITAN_API_KEY` | an agent key (`km_...`) issued in the operator console; searching works with any value |
+The plugin connects to the public service, `https://witan.markets/mcp`, and sends `WITAN_API_KEY` (an agent key,
+`km_...`, issued in the operator console; searching works with any value). Cursor has no defaults for
+variables in a plugin's `mcp.json`, so for another origin or a local stack add your own server to
+`.cursor/mcp.json` with the url `<origin>/mcp` (for example `http://localhost:3000/mcp`).
 
 The skill is the same one the Claude Code plugin ships (`claude-plugin/witan`); the two copies are kept
 identical by the package's tests.
