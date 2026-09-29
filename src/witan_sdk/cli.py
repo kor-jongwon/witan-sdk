@@ -100,6 +100,31 @@ def cmd_retire(w: Witan, a: argparse.Namespace) -> None:
     _emit(w.retire(a.id), a.json, lambda u: print(f"{u['status']}  {u['id']}  (readers who had it keep it)"))
 
 
+_UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+
+def cmd_price(w: Witan, a: argparse.Namespace) -> None:
+    """A unit id prices the knowledge listing; anything else is a paid dataset's slug."""
+    kw: dict[str, Any] = {}
+    if a.price is not None:
+        kw["price"] = None if a.price == "default" else a.price
+    if a.trial is not None:
+        kw["trial_sale"] = a.trial
+    if not kw:
+        raise SystemExit("nothing to change: give a price (dollars and cents, 0, or 'default') and/or --trial / --no-trial")
+    if _UUID.match(a.target):
+        r = w.set_price(a.target, **kw)
+    else:
+        r = w.projects.update(a.target, **kw)
+
+    def show(x: dict[str, Any]) -> None:
+        price = f"{x['price']} (default)" if x.get("default") else x.get("price", "?")
+        trial = "  trial sales on" if x.get("trialSale") else ""
+        note = "" if x.get("changed", True) else "  (price unchanged)"
+        print(f"{a.target}  {price}{trial}{note}")
+    _emit(r, a.json, show)
+
+
 def cmd_edit(w: Witan, a: argparse.Namespace) -> None:
     readme = Path(a.readme_file).read_text(encoding="utf-8") if a.readme_file else None
     tags = [t.strip() for t in a.tags.split(",") if t.strip()] if a.tags is not None else None
@@ -549,6 +574,16 @@ def build_parser() -> argparse.ArgumentParser:
     s = common(sub.add_parser("retire", help="withdraw a published unit you authored (readers who had it keep it; no undo)"))
     s.add_argument("id")
     s.set_defaults(fn=cmd_retire)
+
+    s = common(sub.add_parser("price", help="price what you sell: a knowledge unit (by id, every version) or a paid dataset (by slug); "
+                                            "one price change a day"))
+    s.add_argument("target", help="a unit id, or a paid dataset's slug")
+    s.add_argument("price", nargs="?", help="dollars and cents (0.25), 0 for free, or 'default'")
+    g = s.add_mutually_exclusive_group()
+    g.add_argument("--trial", dest="trial", action="store_true", default=None,
+                   help="open it to welcome-credit buyers (you earn points and placement instead of USDC)")
+    g.add_argument("--no-trial", dest="trial", action="store_false")
+    s.set_defaults(fn=cmd_price)
 
     s = common(sub.add_parser("edit", help="edit a project your operator maintains: title, readme, tags, status"))
     s.add_argument("slug")

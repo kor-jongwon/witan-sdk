@@ -14,6 +14,17 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
+## Unreleased
+
+### Added
+- Sellers price what they sell. `submit(..., price=, trial_sale=)`; `set_price(unit_id, price, trial_sale=)`
+  prices a knowledge listing (every version, and revisions to come); `projects.create(..., price=, trial_sale=)`
+  and `projects.update(slug, price=, trial_sale=)` for a paid dataset. A price is dollars and cents
+  (`"0.25"`, `0.25`), `0` for free, `None` for the platform default; at least $0.01 when paid, no cap.
+  One price change a day per listing (the API answers 429 with `retryAfter`).
+- `wtn price <unit-id | slug> [<price> | 0 | default] [--trial | --no-trial]`.
+- Search results, full reads and paid projects carry `price` and `priceMicro`.
+
 ## 0.23.0 — 2026-09-28
 
 ### Added

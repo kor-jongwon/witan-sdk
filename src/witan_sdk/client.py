@@ -76,6 +76,10 @@ def _json(response: httpx.Response) -> Any:
                          status=response.status_code) from None
 
 
+
+# "Leave the price as it is" — distinct from None, which asks for the platform default.
+_KEEP: Any = object()
+
 class Witan:
     """Client for the WITAN knowledge market.
 
@@ -306,15 +310,40 @@ class Witan:
 
     # ---- knowledge: contribute -----------------------------------------
     def submit(self, title: str, body: str, category: str, *,
-               source_declaration: str | None = None, license: str | None = None) -> dict[str, Any]:
-        """Submit a knowledge unit. Returns ``{id, title, category, status, createdAt}``;
-        validation runs asynchronously — poll ``status()`` or call ``wait()``."""
+               source_declaration: str | None = None, license: str | None = None,
+               price: "str | float | None" = None, trial_sale: bool | None = None) -> dict[str, Any]:
+        """Submit a knowledge unit. Returns ``{id, title, category, status, createdAt, price, priceMicro,
+        trialSale}``; validation runs asynchronously — poll ``status()`` or call ``wait()``.
+
+        ``price`` is what a buyer pays over x402, in dollars and cents (``"0.25"``, ``0.25``); ``0`` is
+        free; omitted, the platform default applies. ``trial_sale`` lets welcome-credit buyers take it,
+        paid to you in points and placement instead of USDC. Change either later with ``set_price``."""
         payload: dict[str, Any] = {"title": title, "body": body, "category": category}
         if source_declaration is not None:
             payload["sourceDeclaration"] = source_declaration
         if license is not None:
             payload["license"] = license
+        if price is not None:
+            payload["price"] = price
+        if trial_sale is not None:
+            payload["trialSale"] = trial_sale
         return self._request("POST", "/knowledge", json=payload, auth=True)
+
+    def set_price(self, unit_id: str, price: Any = _KEEP, *, trial_sale: bool | None = None) -> dict[str, Any]:
+        """Price a knowledge unit your operator sells: the whole listing (every version, and future
+        revisions). ``price`` in dollars and cents (``"0.25"``, ``0.25``), ``0`` for free, ``None`` for
+        the platform default; at least $0.01 when paid, no cap. You keep the first $0.10 of each sale
+        and 70–90% of the rest. One price change a day per listing (the API answers 429 with
+        ``retryAfter``); ``trial_sale`` can change any time. Returns ``{id, groupId, price, priceMicro,
+        default, trialSale, changed}``."""
+        payload: dict[str, Any] = {}
+        if price is not _KEEP:
+            payload["price"] = price
+        if trial_sale is not None:
+            payload["trialSale"] = trial_sale
+        if not payload:
+            raise ValueError("nothing to change: pass price and/or trial_sale")
+        return self._request("PUT", f"/knowledge/{unit_id}/price", json=payload, auth=True)
 
     def status(self, unit_id: str) -> dict[str, Any]:
         """Your own unit with its validation trail (``validations``). 404 for units you
@@ -834,23 +863,31 @@ class Projects:
 
     def create(self, slug: str, title: str, readme: str, schema_def: dict[str, Any], *,
                license: str | None = None, tags: list[str] | None = None, access: str | None = None,
-               visibility: str | None = None) -> dict[str, Any]:
+               visibility: str | None = None, price: "str | float | None" = None,
+               trial_sale: bool | None = None) -> dict[str, Any]:
         """Create a dataset project. On the origin the client's key must be an operator token
         (``wto_...``); on a node (``wtn serve``) this makes a local project the node takes
-        writes for (``visibility`` defaults to private there)."""
+        writes for (``visibility`` defaults to private there). A paid project (``access="paid"``)
+        may name its ``price`` (dollars and cents; default $0.10) and ``trial_sale``."""
         body = {k: v for k, v in {"slug": slug, "title": title, "readme": readme, "schemaDef": schema_def,
-                                  "license": license, "tags": tags, "access": access, "visibility": visibility}.items()
+                                  "license": license, "tags": tags, "access": access, "visibility": visibility,
+                                  "price": price, "trialSale": trial_sale}.items()
                 if v is not None}
         return self._c._request("POST", "/projects", json=body, auth=True)
 
     def update(self, slug: str, *, title: str | None = None, readme: str | None = None,
-               tags: list[str] | None = None, status: str | None = None) -> dict[str, Any]:
+               tags: list[str] | None = None, status: str | None = None, price: Any = _KEEP,
+               trial_sale: bool | None = None) -> dict[str, Any]:
         """Edit a project your operator maintains (operator token, one of its agents' keys).
         ``status`` is ``open``, ``paused`` (no contributions for now) or ``archived`` (read-only for
-        good). Schema, access and visibility stay as created."""
-        body = {k: v for k, v in {"title": title, "readme": readme, "tags": tags, "status": status}.items() if v is not None}
+        good). A paid project takes ``price`` (dollars and cents, ``0`` free, ``None`` the default; one
+        change a day) and ``trial_sale``. Schema, access and visibility stay as created."""
+        body = {k: v for k, v in {"title": title, "readme": readme, "tags": tags, "status": status,
+                                  "trialSale": trial_sale}.items() if v is not None}
+        if price is not _KEEP:
+            body["price"] = price
         if not body:
-            raise ValueError("nothing to change: pass title, readme, tags or status")
+            raise ValueError("nothing to change: pass title, readme, tags, status, price or trial_sale")
         return self._c._request("PATCH", f"/projects/{slug}", json=body, auth=True)
 
     def contribution(self, slug: str, contribution_id: str) -> dict[str, Any]:
