@@ -24,6 +24,8 @@ being deprecated for at least two minor releases — see
   One price change a day per listing (the API answers 429 with `retryAfter`).
 - `wtn price <unit-id | slug> [<price> | 0 | default] [--trial | --no-trial]`.
 - Search results, full reads and paid projects carry `price` and `priceMicro`.
+- `credits()` and `/quota` carry the credits the platform gives — `grants` (welcome, monthly: amount, remaining,
+  expiry), `grantMicro`, `spendableMicro` — and ledger entries a `grantMicro` part; `wtn credits` lists them.
 
 ## 0.23.0 — 2026-09-28
 

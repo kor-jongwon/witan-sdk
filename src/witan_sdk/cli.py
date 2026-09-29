@@ -158,11 +158,16 @@ def cmd_credits(w: Witan, a: argparse.Namespace) -> None:
     def human(c: dict[str, Any]) -> None:
         p = c["prices"]
         print(f"balance  ${c['balanceMicro'] / 1e6:.6f}")
+        for g in c.get("grants", []):   # given by the platform: spent first, on egress, storage and trial sales
+            name = "welcome" if g["kind"] == "welcome" else "monthly"
+            print(f"given    ${g['remainingMicro'] / 1e6:.2f} {name} (of ${g['amountMicro'] / 1e6:.2f}, until {g['expiresAt'][:10]})")
         print(f"prices   egress ${p['egressMicroPerGb'] / 1e6:.2f}/GB · storage ${p['storageMicroPerGibMonth'] / 1e6:.2f}/GiB-month · pack ${p['packMicro'] / 1e6:.2f}")
         print(f"top up   wtn credits buy  (x402: {c['topup']})")
         for e in c["ledger"][:10]:
-            sign = "+" if e["amountMicro"] >= 0 else "-"
-            print(f"  {e['createdAt'][:16].replace('T', ' ')}  {e['kind']:<8} {sign}${abs(e['amountMicro']) / 1e6:.6f}")
+            given = e.get("grantMicro", 0)
+            sign = "+" if e["amountMicro"] >= 0 and not given else "-"
+            note = f"  (${abs(given) / 1e6:.6f} given)" if given else ""
+            print(f"  {e['createdAt'][:16].replace('T', ' ')}  {e['kind']:<8} {sign}${(abs(e['amountMicro']) + abs(given)) / 1e6:.6f}{note}")
 
     _emit(c, a.json, human)
 
