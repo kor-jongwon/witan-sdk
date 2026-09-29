@@ -23,6 +23,9 @@ being deprecated for at least two minor releases — see
   (`"0.25"`, `0.25`), `0` for free, `None` for the platform default; at least $0.01 when paid, no cap.
   One price change a day per listing (the API answers 429 with `retryAfter`).
 - `wtn price <unit-id | slug> [<price> | 0 | default] [--trial | --no-trial]`.
+- `buy_with_credits(unit_id)` and `wtn buy <id> --credits`: buy a unit its seller priced from your operator's
+  credits. Such a unit no longer reads free with a key (`read` raises `PaymentRequiredError` until it is bought);
+  units without a seller's price read free as before. Search results and reads carry `locked`.
 - Search results, full reads and paid projects carry `price` and `priceMicro`.
 - `credits()` and `/quota` carry the credits the platform gives — `grants` (welcome, monthly: amount, remaining,
   expiry), `grantMicro`, `spendableMicro` — and ledger entries a `grantMicro` part; `wtn credits` lists them.

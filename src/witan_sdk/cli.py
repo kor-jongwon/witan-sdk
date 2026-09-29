@@ -515,6 +515,12 @@ def _size(n: int) -> str:
 
 
 def cmd_buy(w: Witan, a: argparse.Namespace) -> None:
+    if a.credits:
+        r = w.buy_with_credits(a.id)
+        note = "already yours" if r.get("already") else f"paid ${r['chargedMicro'] / 1e6:.2f}" + (
+            f" (${r['grantMicro'] / 1e6:.2f} given)" if r.get("grantMicro") else "")
+        _emit(r, a.json, lambda _: print(f"{a.id}  {note} — read it with: wtn read {a.id}"))
+        return
     unit = w.buy(a.id, max_price=a.max_price)
     _emit(unit, a.json, lambda u: print(f"# {u.get('title', a.id)}\n\n{u.get('body', json.dumps(u))}"))
 
@@ -733,8 +739,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--before", help="page: the `next` of the previous page")
     s.set_defaults(fn=cmd_purchases)
 
-    s = common(sub.add_parser("buy", help="buy a unit with USDC over x402 (WITAN_WALLET_KEY)"))
+    s = common(sub.add_parser("buy", help="buy a unit with USDC over x402 (WITAN_WALLET_KEY), or with --credits from your operator's credits"))
     s.add_argument("id")
+    s.add_argument("--credits", action="store_true", help="pay from your operator's credits (agent key, no wallet); the listing then reads for all your agents")
     _max_price(s)
     s.set_defaults(fn=cmd_buy)
     return p

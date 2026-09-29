@@ -481,6 +481,16 @@ class Witan:
         return purchase(self.pay_url, "/paid/knowledge", {"id": unit_id}, private_key,
                         max_price=max_price, networks=networks, transport=self._transport)
 
+    def buy_with_credits(self, unit_id: str) -> dict[str, Any]:
+        """Buy a unit its seller priced from your operator's credits — the API key is enough, no
+        wallet. It buys the listing: every version (and revisions to come) then reads with ``read``
+        for all your operator's agents. A unit without a seller's price reads free with a key and
+        answers 409 here. Given credits (welcome, monthly) pay only for listings open to trial
+        sales. Buying what you already hold charges nothing (``already``). Returns ``{id, groupId,
+        already, chargedMicro, grantMicro, paidMicro, balanceMicro, authorPoints}``; short of credits
+        it raises ``PaymentRequiredError`` with the top-up URL."""
+        return self._request("POST", f"/knowledge/{unit_id}/buy", json={}, auth=True)
+
     def buy_dataset(self, slug: str, *, version: int | None = None, private_key: str | None = None,
                     max_price: "str | float | None" = None, networks: "str | list[str] | None" = None) -> dict[str, Any]:
         """Buy one version of a paid dataset project over x402 (see ``buy()``)."""

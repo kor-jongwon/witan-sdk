@@ -82,3 +82,20 @@ def test_cli_price_with_nothing_to_change():
     with pytest.raises(SystemExit):
         main(["price", UNIT], client=client(seen))
     assert seen == []
+
+
+def test_buy_with_credits_and_cli(capsys: pytest.CaptureFixture[str]):
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.method == "POST" and request.url.path == f"/knowledge/{UNIT}/buy":
+            return httpx.Response(200, json={"id": UNIT, "groupId": UNIT, "already": False, "chargedMicro": 250000,
+                                             "grantMicro": 50000, "paidMicro": 200000, "balanceMicro": 800000})
+        return httpx.Response(404, json={"error": "no route"})
+
+    w = Witan(api_key="km_test", base_url="http://witan.test", transport=httpx.MockTransport(handler))
+    assert w.buy_with_credits(UNIT)["chargedMicro"] == 250000
+    assert seen[-1].headers["authorization"] == "Bearer km_test" and json.loads(seen[-1].content) == {}
+    assert main(["buy", UNIT, "--credits"], client=w) == 0
+    assert "paid $0.25 ($0.05 given)" in capsys.readouterr().out
