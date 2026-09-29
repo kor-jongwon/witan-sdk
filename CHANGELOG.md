@@ -26,6 +26,8 @@ being deprecated for at least two minor releases — see
   it exits with code 69. Options on the command line work as before.
 - `WITAN_NODE_TOKEN_FILE` and `WITAN_API_KEY_FILE` read those values from a file, for Docker or Compose
   secrets.
+- Python 3.14. The Requirements table lists the versions CI tests: every Python from 3.10 to 3.14 on
+  Linux, and 3.10 and 3.14 on macOS and Windows, each with the `x402` and `query` extras.
 
 ### Changed
 - The default origin is the public service, `https://witan.markets`, instead of a local stack at
@@ -36,6 +38,10 @@ being deprecated for at least two minor releases — see
 - The Claude Code plugin's MCP server defaults to `https://witan.markets/mcp`, and the Cursor plugin connects there
   (Cursor has no defaults for variables, so it no longer needs `WITAN_BASE_URL`). Both plugins are 0.2.0.
 - Examples in the documentation and on Docker Hub use `https://witan.markets`.
+
+### Fixed
+- `wtn` no longer crashes when its output is redirected on a Windows code page such as cp949 (Korean) or
+  cp1252: characters the code page lacks, like the em dash in `--help`, are replaced.
 
 ## 0.22.3 — 2026-09-27
 

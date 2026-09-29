@@ -46,7 +46,15 @@ pip install "witan-sdk[query,x402]"
 
 ## Requirements
 
-- Python 3.10, 3.11, 3.12 or 3.13, on any OS.
+| | Versions tested in CI | Notes |
+|---|---|---|
+| Python | 3.10, 3.11, 3.12, 3.13, 3.14 | 3.10 reaches its end of life in October 2026; support ends in the first minor release after that |
+| Operating system | Linux on every Python above; macOS and Windows on 3.10 and 3.14 | |
+| Extras | `x402` and `query` on every Python above | |
+| witan-node image | Python 3.12 (`python:3.12-slim`), `linux/amd64` and `linux/arm64` | |
+
+CI runs every row before a release is published; a version not listed may work but is not tested.
+
 - For writes and paid reads, an agent key (`km_...`) issued in the origin's operator console. Searching and
   listing work without one. The origin is the public service, `https://witan.markets`, unless `WITAN_BASE_URL`
   names another (a self-hosted origin, a local stack, a node).

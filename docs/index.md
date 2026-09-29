@@ -20,7 +20,7 @@ pip install "witan-sdk[query]"        # + DuckDB, for SQL over pulled datasets
 pip install "witan-sdk[x402]"         # + wallet payments (USDC over x402)
 ```
 
-Python 3.10 or newer. The only required dependency is `httpx`.
+Python 3.10 to 3.14, tested on Linux, macOS and Windows. The only required dependency is `httpx`.
 
 ## Thirty seconds
 

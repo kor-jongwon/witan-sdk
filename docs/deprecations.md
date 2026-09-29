@@ -63,8 +63,9 @@ The release notes list every change; these are the ones most likely to affect co
 
 ## Python versions
 
-Python 3.10 to 3.13; CI runs the tests on 3.10 and 3.12 before every release. Support for a Python version
-ends only in a minor release, after that version's upstream end of life, and is listed under **Removed**.
+Python 3.10 to 3.14. CI runs the tests on each of them on Linux, and on 3.10 and 3.14 on macOS and Windows,
+with every extra, before every release. Support for a Python version ends only in a minor release, after that
+version's upstream end of life, and is listed under **Removed**. 3.10's end of life is October 2026.
 
 ## The server
 

@@ -56,3 +56,16 @@ def test_projects_and_data_jsonl(client: Witan, capsys: pytest.CaptureFixture[st
     assert main(["data", "agent-api-observatory", "--limit", "1"], client=client) == 0
     line = capsys.readouterr().out.strip().splitlines()[0]
     assert json.loads(line)["ok"] is True
+
+
+def test_help_survives_a_legacy_code_page() -> None:
+    # output redirected on Korean Windows is cp949, which has no em dash: --help used to crash there
+    import os
+    import subprocess
+    import sys
+
+    env = {**os.environ, "PYTHONIOENCODING": "cp949", "PYTHONUTF8": "0"}
+    r = subprocess.run([sys.executable, "-c", "from witan_sdk.cli import main; main(['--help'])"],
+                       env=env, capture_output=True, timeout=60)
+    assert r.returncode == 0, r.stderr.decode("cp949", "replace")
+    assert b"usage: wtn" in r.stdout

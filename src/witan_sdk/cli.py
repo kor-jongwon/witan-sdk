@@ -705,7 +705,16 @@ def _max_price(sp: argparse.ArgumentParser) -> None:
                                                        "networks other than Base Sepolia need WITAN_X402_NETWORKS")
 
 
+def _tolerant_output() -> None:
+    """Output redirected on a Windows code page (cp949, cp1252, ...) cannot encode every character wtn
+    prints (an em dash in --help, a title in another script): replace those rather than crash."""
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure") and (getattr(stream, "encoding", "") or "").lower().replace("-", "") != "utf8":
+            stream.reconfigure(errors="replace")
+
+
 def main(argv: Sequence[str] | None = None, client: Witan | None = None) -> int:
+    _tolerant_output()
     args = build_parser().parse_args(argv)
     w = client or Witan(api_key=args.api_key, base_url=args.base_url)
     try:

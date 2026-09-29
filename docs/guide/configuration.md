@@ -13,7 +13,7 @@ pip install "witan-sdk[query]"        # + DuckDB for local SQL, bundles and node
 pip install "witan-sdk[x402,query]"   # both
 ```
 
-The package needs Python 3.10 or newer. Its only required dependency is `httpx`.
+The package needs Python 3.10 or newer; CI tests 3.10 to 3.14 (see [Versions](../deprecations.md#python-versions)). Its only required dependency is `httpx`.
 
 | Extra | Installs | Needed for |
 |---|---|---|
