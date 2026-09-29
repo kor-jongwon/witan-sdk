@@ -120,8 +120,8 @@ Every release also ships as a container image, built from the same wheel PyPI se
 `query` extra) and signed with a build provenance:
 
 ```
-ghcr.io/kor-jongwon/witan-node:0.22.0     # also :0.22 and :latest; linux/amd64 and linux/arm64
-jongwon98/witan-node:0.22.0               # Docker Hub: the same image, digest for digest
+ghcr.io/kor-jongwon/witan-node:0.23.0     # also :0.23 and :latest; linux/amd64 and linux/arm64
+jongwon98/witan-node:0.23.0               # Docker Hub: the same image, digest for digest
 ```
 
 Install with `pip` on a laptop or next to the agent; use the image on a server, in Kubernetes or
@@ -153,6 +153,9 @@ What the image does with its arguments:
 | `WITAN_NODE_PORT` | The port inside the container (and the one the health check probes). | `8686` |
 | `WITAN_BASE_URL`, `WITAN_API_KEY` | The origin and agent key for `pull` and `--follow`. | — |
 | `WITAN_TRUST_FILE` | Pinned signing keys, kept in the volume. | `/data/trust.json` |
+| `WITAN_FOLLOW`, `WITAN_FOLLOW_INTERVAL` | Serve with `--follow` these space-separated slugs, every so many seconds. | none, `600` |
+| `WITAN_VERIFY` | With `WITAN_FOLLOW`: `--verify`, after pinning the origin's keys (`wtn trust add`). A node that already holds them still starts when the origin cannot be reached. | off |
+| `WITAN_NODE_TOKEN_FILE`, `WITAN_API_KEY_FILE` | Read the value from this file, for Docker or Compose secrets, instead of the environment `docker inspect` shows. | — |
 
 The volume holds the store (`/data/witan-data`) and the pinned keys (`/data/trust.json`), so
 they outlive the container. The node runs as uid 10001, not root, works with a read-only root
@@ -168,30 +171,23 @@ docker run -d --name witan-node -p 127.0.0.1:8686:8686 -v witan-data:/data \
   ghcr.io/kor-jongwon/witan-node --follow api-latency-benchmarks --interval 300 --verify
 ```
 
-With Compose:
+With Compose, use the official file. It follows with signatures checked, and every setting comes from
+`.env`:
 
-```yaml
-services:
-  witan-node:
-    image: ghcr.io/kor-jongwon/witan-node:0.21
-    command: ["--follow", "api-latency-benchmarks", "--verify"]
-    environment:
-      WITAN_NODE_TOKEN: ${WITAN_NODE_TOKEN:?set a token}
-      WITAN_BASE_URL: https://witan.markets
-      WITAN_API_KEY: ${WITAN_API_KEY}
-    ports: ["127.0.0.1:8686:8686"]
-    volumes: ["witan-data:/data"]
-    read_only: true
-    tmpfs: ["/tmp"]
-    restart: unless-stopped
-volumes:
-  witan-data:
+```bash
+curl -LfO https://raw.githubusercontent.com/kor-jongwon/witan-sdk/v0.23.0/docker/docker-compose.yml
+curl -Lf -o .env https://raw.githubusercontent.com/kor-jongwon/witan-sdk/v0.23.0/docker/.env.example
+chmod 600 .env    # set WITAN_NODE_TOKEN, WITAN_FOLLOW="api-latency-benchmarks" and WITAN_API_KEY
+docker compose up -d
 ```
+
+The settings are listed in [`.env.example`](https://github.com/kor-jongwon/witan-sdk/blob/main/docker/.env.example).
+The file pins the image of its release, so upgrade by fetching a newer release's file.
 
 Check where an image came from before you run it:
 
 ```bash
-gh attestation verify oci://ghcr.io/kor-jongwon/witan-node:0.21.0 --owner kor-jongwon
+gh attestation verify oci://ghcr.io/kor-jongwon/witan-node:0.23.0 --owner kor-jongwon
 ```
 
 ## Writes on a node

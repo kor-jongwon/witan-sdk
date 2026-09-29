@@ -16,6 +16,17 @@ being deprecated for at least two minor releases — see
 
 ## 0.23.0 — 2026-09-28
 
+### Added
+- An official Compose file for the node, `docker/docker-compose.yml`, with `docker/.env.example`. Fetch
+  both from a release tag, fill in `.env`, and `docker compose up -d`. The file pins that release's image,
+  and CI brings it up before every image is published.
+- The `witan-node` image takes its serve options from the environment: `WITAN_FOLLOW` (space-separated
+  slugs), `WITAN_FOLLOW_INTERVAL` and `WITAN_VERIFY`. With `WITAN_VERIFY=1` it pins the origin's keys first
+  (`wtn trust add`) and still starts from keys it already holds when the origin cannot be reached; with none
+  it exits with code 69. Options on the command line work as before.
+- `WITAN_NODE_TOKEN_FILE` and `WITAN_API_KEY_FILE` read those values from a file, for Docker or Compose
+  secrets.
+
 ### Changed
 - The default origin is the public service, `https://witan.markets`, instead of a local stack at
   `http://localhost:3000`. `Witan()` and `wtn` with no `WITAN_BASE_URL` now reach it, and searching
