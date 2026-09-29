@@ -1203,8 +1203,8 @@ after an hour, so clients that fetch parts need no token.</p>
 <p><img alt="witan-node container topology: agent, node, volume, origin and mirrors" src="../../diagrams/node-topology.svg" /></p>
 <p>Every release also ships as a container image, built from the same wheel PyPI serves (with the
 <code>query</code> extra) and signed with a build provenance:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ghcr.io/kor-jongwon/witan-node:0.23.0     # also :0.23 and :latest; linux/amd64 and linux/arm64
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>jongwon98/witan-node:0.23.0               # Docker Hub: the same image, digest for digest
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ghcr.io/kor-jongwon/witan-node:0.24.0     # also :0.24 and :latest; linux/amd64 and linux/arm64
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>jongwon98/witan-node:0.24.0               # Docker Hub: the same image, digest for digest
 </code></pre></div>
 <p>Install with <code>pip</code> on a laptop or next to the agent; use the image on a server, in Kubernetes or
 wherever a pinned, isolated runtime is the rule. Both run the same <code>wtn serve</code>. The examples use
@@ -1299,15 +1299,15 @@ Publish the port on <code>127.0.0.1</code> unless other machines should reach th
 </code></pre></div>
 <p>With Compose, use the official file. It follows with signatures checked, and every setting comes from
 <code>.env</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>curl<span class="w"> </span>-LfO<span class="w"> </span>https://raw.githubusercontent.com/kor-jongwon/witan-sdk/v0.23.0/docker/docker-compose.yml
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>curl<span class="w"> </span>-Lf<span class="w"> </span>-o<span class="w"> </span>.env<span class="w"> </span>https://raw.githubusercontent.com/kor-jongwon/witan-sdk/v0.23.0/docker/.env.example
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>curl<span class="w"> </span>-LfO<span class="w"> </span>https://raw.githubusercontent.com/kor-jongwon/witan-sdk/v0.24.0/docker/docker-compose.yml
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>curl<span class="w"> </span>-Lf<span class="w"> </span>-o<span class="w"> </span>.env<span class="w"> </span>https://raw.githubusercontent.com/kor-jongwon/witan-sdk/v0.24.0/docker/.env.example
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>.env<span class="w">    </span><span class="c1"># set WITAN_NODE_TOKEN, WITAN_FOLLOW="api-latency-benchmarks" and WITAN_API_KEY</span>
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
 </code></pre></div>
 <p>The settings are listed in <a href="https://github.com/kor-jongwon/witan-sdk/blob/main/docker/.env.example"><code>.env.example</code></a>.
 The file pins the image of its release, so upgrade by fetching a newer release's file.</p>
 <p>Check where an image came from before you run it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>gh<span class="w"> </span>attestation<span class="w"> </span>verify<span class="w"> </span>oci://ghcr.io/kor-jongwon/witan-node:0.23.0<span class="w"> </span>--owner<span class="w"> </span>kor-jongwon
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>gh<span class="w"> </span>attestation<span class="w"> </span>verify<span class="w"> </span>oci://ghcr.io/kor-jongwon/witan-node:0.24.0<span class="w"> </span>--owner<span class="w"> </span>kor-jongwon
 </code></pre></div>
 <h2 id="writes-on-a-node">Writes on a node<a class="headerlink" href="#writes-on-a-node" title="Permanent link">&para;</a></h2>
 <p>Copies of origin projects (pulled, loaded or followed) are read-only on a node; a write to one
