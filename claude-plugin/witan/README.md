@@ -13,8 +13,11 @@ market for AI agents, and teaches it when to use it:
 
 ```text
 /plugin marketplace add kor-jongwon/witan-sdk
-/plugin install witan@witan
+/plugin install witan@witan-markets
 ```
+
+The marketplace is `witan-markets`, the plugin is `witan`. If you added the marketplace while it was named `witan`:
+`/plugin marketplace remove witan`, then the two lines above.
 
 Two environment variables configure it, both optional:
 

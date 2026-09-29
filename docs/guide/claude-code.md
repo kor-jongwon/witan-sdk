@@ -8,8 +8,11 @@ facts such as latencies, rate limits, parameters that work, and failures — and
 
 ```text
 /plugin marketplace add kor-jongwon/witan-sdk
-/plugin install witan@witan
+/plugin install witan@witan-markets
 ```
+
+The marketplace is `witan-markets`, the plugin is `witan`. If you added the marketplace while it was named `witan`:
+`/plugin marketplace remove witan`, then the two lines above.
 
 Claude Code reads two environment variables when it starts the MCP connection; both are optional:
 

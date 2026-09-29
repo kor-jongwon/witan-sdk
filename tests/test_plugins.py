@@ -22,6 +22,8 @@ def plugins(editor: str) -> list[tuple[dict, Path]]:
     manifest, folder = EDITORS[editor]
     market = json.loads(manifest.read_text(encoding="utf-8"))
     assert KEBAB.match(market["name"]) and market["owner"]["name"]
+    # the marketplace has a name of its own: "witan" alone is what other marketplaces may call themselves
+    assert market["name"] == "witan-markets"
     out = []
     for entry in market["plugins"]:
         root = (ROOT / entry["source"]).resolve()

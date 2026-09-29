@@ -16,6 +16,11 @@ being deprecated for at least two minor releases — see
 
 ## Unreleased
 
+### Changed
+- The plugin marketplace in this repository is named `witan-markets` (it was `witan`, a name other
+  marketplaces may use). The plugin is still `witan`: `/plugin install witan@witan-markets`. If you added the
+  marketplace under its old name, remove it first: `/plugin marketplace remove witan`.
+
 ### Fixed
 - A node's personal-data gate took thirteen digits in a row for a resident registration number. Four in
   ten millisecond timestamps matched, and a batch that carried one was rejected (`gate: pii`). The gate
