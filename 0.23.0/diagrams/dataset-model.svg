@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 454" width="960" height="454" role="img" aria-label="Dataset versions are signed manifests of shared Parquet parts" font-family="'Wanted Sans Variable', 'Wanted Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" text-rendering="geometricPrecision">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9BA1AD"/></marker><marker id="arrow-v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#7C5CFF"/></marker><marker id="arrow-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#FFB35C"/></marker><linearGradient id="aurora" x1="12" y1="2" x2="21" y2="10" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7C5CFF"/><stop offset=".6" stop-color="#FF5C87"/><stop offset="1" stop-color="#FFB35C"/></linearGradient><linearGradient id="aurora-h" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7C5CFF"/><stop offset=".6" stop-color="#FF5C87"/><stop offset="1" stop-color="#FFB35C"/></linearGradient><linearGradient id="aurora-v" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9A80FF"/><stop offset="1" stop-color="#7C5CFF" stop-opacity=".55"/></linearGradient><linearGradient id="tint" x1=".3" y1="0" x2=".7" y2="1"><stop offset="0" stop-color="#7C5CFF" stop-opacity=".2"/><stop offset=".46" stop-color="#07080C" stop-opacity="0"/><stop offset="1" stop-color="#FF8A4C" stop-opacity=".09"/></linearGradient><filter id="glow-v" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="7" flood-color="#7C5CFF" flood-opacity="0.55"/></filter><filter id="glow-w" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="2.5" flood-color="#ECEEF2" flood-opacity="0.45"/></filter><filter id="glow-g" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#58C48A" flood-opacity="0.8"/></filter><filter id="glow-a" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#FFB35C" flood-opacity="0.45"/></filter><filter id="blur-mark" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.2"/></filter></defs>
+<rect width="960" height="454" rx="18" fill="#07080C"/>
+<rect width="960" height="454" rx="18" fill="url(#tint)"/>
+<rect x=".5" y=".5" width="959" height="453" rx="17.5" fill="none" stroke="#ECEEF2" stroke-opacity=".12"/>
+<g transform="translate(32.6 24.6) scale(0.95)" filter="url(#blur-mark)" opacity=".6"><polygon points="3,7 12,2 12,10" fill="#F2F3F7"/><polygon points="12,2 21,7 12,10" fill="url(#aurora)"/><polygon points="21,7 21,17 12,22 12,10" fill="#B9BEC9"/><polygon points="3,7 12,10 12,22 3,17" fill="#5E6470"/></g><g transform="translate(32.6 24.6) scale(0.95)"><polygon points="3,7 12,2 12,10" fill="#F2F3F7"/><polygon points="12,2 21,7 12,10" fill="url(#aurora)"/><polygon points="21,7 21,17 12,22 12,10" fill="#B9BEC9"/><polygon points="3,7 12,10 12,22 3,17" fill="#5E6470"/></g><text x="62" y="41.5" font-size="15.5" font-weight="700" letter-spacing="-0.3" fill="#ECEEF2">WITAN</text>
+<text x="32" y="86" font-size="25" font-weight="800" letter-spacing="-0.8" fill="#ECEEF2">A dataset version is a signed list of parts</text>
+<text x="32" y="111" font-size="14" fill="#9BA1AD">Like image layers: parts are content-addressed Parquet files that versions share.</text>
+<g transform="translate(0 40)">
+<text x="32" y="106" font-size="11" font-weight="600" letter-spacing="0.7" fill="#5D6370" xml:space="preserve">VERSIONS (IMMUTABLE MANIFESTS)</text>
+<rect x="32" y="118" width="272" height="92" rx="12" fill="#0E0F16" fill-opacity=".86" stroke="#ECEEF2" stroke-opacity=".16"/>
+<text x="48" y="143" font-size="14.5" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">v1 manifest</text>
+<text x="48" y="163" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">signed by the origin</text>
+<rect x="48" y="176" width="36" height="22" rx="5" fill="#4E5566"/>
+<text x="66" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">a</text>
+<rect x="92" y="176" width="36" height="22" rx="5" fill="#5B6275"/>
+<text x="110" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">b</text>
+<rect x="332" y="118" width="272" height="92" rx="12" fill="#0E0F16" fill-opacity=".86" stroke="#ECEEF2" stroke-opacity=".16"/>
+<text x="348" y="143" font-size="14.5" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">v2 manifest</text>
+<text x="348" y="163" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">signed by the origin</text>
+<rect x="348" y="176" width="36" height="22" rx="5" fill="#4E5566"/>
+<text x="366" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">a</text>
+<rect x="392" y="176" width="36" height="22" rx="5" fill="#5B6275"/>
+<text x="410" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">b</text>
+<rect x="436" y="176" width="36" height="22" rx="5" fill="#6F5CD6"/>
+<text x="454" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">c</text>
+<rect x="480" y="176" width="36" height="22" rx="5" fill="#8B6BE8"/>
+<text x="498" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">d</text>
+<rect x="632" y="118" width="272" height="92" rx="12" fill="#0E0F16" stroke="#7C5CFF" stroke-width="1.5" filter="url(#glow-v)"/>
+<text x="648" y="143" font-size="14.5" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">v3 manifest</text>
+<text x="648" y="163" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">signed by the origin</text>
+<rect x="648" y="176" width="36" height="22" rx="5" fill="#4E5566"/>
+<text x="666" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">a</text>
+<rect x="692" y="176" width="36" height="22" rx="5" fill="#5B6275"/>
+<text x="710" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">b</text>
+<rect x="736" y="176" width="36" height="22" rx="5" fill="#6F5CD6"/>
+<text x="754" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">c</text>
+<rect x="780" y="176" width="36" height="22" rx="5" fill="#8B6BE8"/>
+<text x="798" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">d</text>
+<rect x="824" y="176" width="36" height="22" rx="5" fill="#FF5C87"/>
+<text x="842" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">e</text>
+<text x="32" y="262" font-size="11" font-weight="600" letter-spacing="0.7" fill="#5D6370" xml:space="preserve">OBJECT STORE (CONTENT-ADDRESSED PARQUET PARTS, SHARED ACROSS VERSIONS)</text>
+<rect x="32" y="274" width="164" height="56" rx="12" fill="#0E0F16" stroke="#4E5566" stroke-width="1.5"/>
+<text x="48" y="298" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">part a</text>
+<text x="48" y="317" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">&lt;sha256-a&gt;.parquet</text>
+<rect x="212" y="274" width="164" height="56" rx="12" fill="#0E0F16" stroke="#5B6275" stroke-width="1.5"/>
+<text x="228" y="298" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">part b</text>
+<text x="228" y="317" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">&lt;sha256-b&gt;.parquet</text>
+<rect x="392" y="274" width="164" height="56" rx="12" fill="#0E0F16" stroke="#6F5CD6" stroke-width="1.5"/>
+<text x="408" y="298" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">part c</text>
+<text x="408" y="317" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">&lt;sha256-c&gt;.parquet</text>
+<rect x="572" y="274" width="164" height="56" rx="12" fill="#0E0F16" stroke="#8B6BE8" stroke-width="1.5"/>
+<text x="588" y="298" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">part d</text>
+<text x="588" y="317" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">&lt;sha256-d&gt;.parquet</text>
+<rect x="752" y="274" width="164" height="56" rx="12" fill="#0E0F16" stroke="#FF5C87" stroke-width="1.5"/>
+<text x="768" y="298" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">part e</text>
+<text x="768" y="317" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">&lt;sha256-e&gt;.parquet</text>
+<path d="M760 210L800 272" fill="none" stroke="#7C5CFF" stroke-width="1.8" marker-end="url(#arrow-v)"/>
+<text x="812" y="246" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">pull v3 with v2 on disk:</text>
+<text x="812" y="262" font-size="11.5" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">only part e transfers</text>
+<text x="32" y="368" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">A contribution becomes new parts plus a new manifest. Old versions never change, so a pinned</text>
+<text x="32" y="388" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">version answers the same query forever, and every part is checked against its SHA-256 on the way in.</text>
+</g>
+</svg>
