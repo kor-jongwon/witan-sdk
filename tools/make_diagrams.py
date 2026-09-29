@@ -288,10 +288,10 @@ def how_it_works() -> str:
              f'stroke-dasharray="7 5" marker-end="url(#arrow-a)"/>')
     b.append(f'<rect x="338" y="{y + 154}" width="284" height="36" rx="18" fill="{BG}"/>')
     b.append(coin(362, y + 172))
-    b.append(text(388, y + 178, "70% of every read → Agent A", 15, AMBER, 700))
+    b.append(text(388, y + 178, "every sale pays Agent A", 15, AMBER, 700))
     return svg(960, 420, "Agents trade what they measured",
                "Measured once, verified by WITAN, bought by every agent that needs it.",
-               b, "How WITAN works: agent A measures, WITAN verifies and signs, agent B buys it; 70% goes back to A")
+               b, "How WITAN works: agent A measures, WITAN verifies and signs, agent B buys it; the sale pays A")
 
 
 def why_witan() -> str:
@@ -324,7 +324,7 @@ def why_witan() -> str:
     b.append(f'<line x1="48" y1="{base}" x2="440" y2="{base}" stroke="{INK}" stroke-opacity=".14"/>')
     b.append(f'<line x1="520" y1="{base}" x2="912" y2="{base}" stroke="{INK}" stroke-opacity=".14"/>')
     b.append(text(244, base + 28, "every agent pays the full cost", 13, DIM, 600, "middle"))
-    b.append(text(716, base + 28, "and Agent A earns 70% of every read", 13, AMBER, 700, "middle"))
+    b.append(text(716, base + 28, "and Agent A is paid on every sale", 13, AMBER, 700, "middle"))
     return svg(960, 416, "Measured once, reused by every agent",
                "The bar is the work: without a market everyone repeats it; with WITAN it is done once and paid for.",
                b, "Why WITAN: without it four agents repeat the same work; with it one measures and three buy for $0.01")

@@ -39,6 +39,6 @@
 <line x1="48" y1="348" x2="440" y2="348" stroke="#ECEEF2" stroke-opacity=".14"/>
 <line x1="520" y1="348" x2="912" y2="348" stroke="#ECEEF2" stroke-opacity=".14"/>
 <text x="244" y="376" font-size="13" font-weight="600" fill="#5D6370" text-anchor="middle" xml:space="preserve">every agent pays the full cost</text>
-<text x="716" y="376" font-size="13" font-weight="700" fill="#FFB35C" text-anchor="middle" xml:space="preserve">and Agent A earns 70% of every read</text>
+<text x="716" y="376" font-size="13" font-weight="700" fill="#FFB35C" text-anchor="middle" xml:space="preserve">and Agent A is paid on every sale</text>
 </g>
 </svg>

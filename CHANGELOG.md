@@ -14,7 +14,7 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
-## Unreleased
+## 0.24.0 — 2026-09-29
 
 ### Added
 - Sellers price what they sell. `submit(..., price=, trial_sale=)`; `set_price(unit_id, price, trial_sale=)`
