@@ -103,12 +103,25 @@ def test_the_gates_reject_with_the_origin_s_reasons(w: Witan) -> None:
         ([{"key": "c", "n": 1, "v": 1}, {"key": "d", "v": 1}], "schema", 'line 2: missing required field "n"'),
         ([{"key": "e", "n": 1, "v": True}], "schema", '"v" must be number'),
         ([{"key": "900101-1234567", "n": 1, "v": 1}], "pii", "resident registration number pattern detected"),
+        # … written without the hyphen: the check digit is right
+        ([{"key": "9012311234563", "n": 1, "v": 1}], "pii", "resident registration number pattern detected"),
         ([{"key": "a", "n": 1, "v": 1.0}], "dedup", "every record already exists in the dataset"),
     ]
     for records, gate, reason in cases:
         r = w.projects.contribute(SLUG, records)
         assert r["status"] == "rejected" and r["verdict"]["gate"] == gate and reason in r["verdict"]["reason"], r
     assert w.projects.get(SLUG)["latestVersion"] == 1  # nothing rejected made a version
+
+
+def test_thirteen_digits_that_are_not_a_resident_number_merge(w: Witan) -> None:
+    # millisecond timestamps, as a number and as a string, and a barcode: the gate used to take
+    # each for a resident registration number and reject the batch
+    r = w.projects.contribute(SLUG, [
+        {"key": "1727612345678", "n": 1727612345678, "v": 1},
+        {"key": "8801234567893", "n": 1790701783000, "v": 2},
+        {"key": "order 2026093012345678", "n": 3, "v": 3},
+    ])
+    assert r["status"] == "merged" and r["acceptedCount"] == 3, r
 
 
 def test_idempotency_key_replays_and_guards(node, w: Witan) -> None:

@@ -37,7 +37,6 @@ MAX_BATCH_RECORDS = 500
 MAX_BATCH_BYTES = 512 * 1024
 COMPACT_MAX_BYTES = 1024 * 1024
 IDEMPOTENCY_TTL_S = 24 * 3600
-RRN = re.compile(r"\d{6}[-\s]?[1-4]\d{6}", re.ASCII)  # the origin's personal-data gate
 FIELD_NAME = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,60}$")
 TAG = re.compile(r"^[a-z0-9-]{2,30}$")
 DUCK_TYPE = {"string": "VARCHAR", "number": "DOUBLE", "integer": "BIGINT", "boolean": "BOOLEAN"}
@@ -49,6 +48,43 @@ class WriteError(Exception):
         super().__init__(message)
         self.status = status
         self.message = message
+
+
+# --- the personal-data gate, as the origin keeps it (api/src/pii.ts) ---
+# A resident registration number in a string of the record. Written the usual way (six digits, a
+# hyphen, seven): the first six are a date and the seventh is 1-8. Written with a space or with
+# nothing in between: the same, and the check digit is right — thirteen digits in a row are far more
+# often a timestamp in milliseconds or an order number. Digits inside a longer run are not one, and
+# the numbers of a record are not read.
+_RRN = re.compile(r"(?<![0-9])([0-9]{2})([0-9]{2})([0-9]{2})([-\s]?)([1-8][0-9]{5})([0-9])(?![0-9])")
+_RRN_DAYS = (31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+_RRN_WEIGHTS = (2, 3, 4, 5, 6, 7, 8, 9, 2, 3, 4, 5)
+
+
+def has_resident_number(text: str) -> bool:
+    for m in _RRN.finditer(text):
+        month, day = int(m[2]), int(m[3])
+        if not (1 <= month <= 12 and 1 <= day <= _RRN_DAYS[month - 1]):
+            continue
+        if m[4] == "-":
+            return True
+        total = sum(int(d) * w for d, w in zip(m[1] + m[2] + m[3] + m[5], _RRN_WEIGHTS))
+        if (11 - total % 11) % 10 == int(m[6]):
+            return True
+    return False
+
+
+def record_has_resident_number(value: object) -> bool:
+    if isinstance(value, str):
+        return has_resident_number(value)
+    if isinstance(value, (list, tuple)):
+        return any(record_has_resident_number(v) for v in value)
+    if isinstance(value, dict):
+        return any(has_resident_number(str(k)) or record_has_resident_number(v) for k, v in value.items())
+    return False
+
+
+# --- end of the gate ---
 
 
 def _now() -> str:
@@ -309,7 +345,7 @@ class Writer:
                 if err:
                     verdict = {"gate": "schema", "reason": f"line {line}: {err}"}
                     break
-                if RRN.search(json.dumps(rec, ensure_ascii=False, separators=(",", ":"))):
+                if record_has_resident_number(rec):
                     verdict = {"gate": "pii", "reason": "resident registration number pattern detected"}
                     break
                 stored = stored_form(rec, schema)

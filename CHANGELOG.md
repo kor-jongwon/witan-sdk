@@ -14,6 +14,15 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
+## Unreleased
+
+### Fixed
+- A node's personal-data gate took thirteen digits in a row for a resident registration number. Four in
+  ten millisecond timestamps matched, and a batch that carried one was rejected (`gate: pii`). The gate
+  now reads a record's strings and not its numbers, and asks more of what it finds: written with a
+  hyphen, the first six digits are a date and the seventh is 1-8; written without, the check digit is
+  right as well. Digits inside a longer run of digits are not one. The origin keeps the same rule.
+
 ## 0.24.0 — 2026-09-29
 
 ### Added
