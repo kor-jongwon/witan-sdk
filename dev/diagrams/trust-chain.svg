@@ -32,6 +32,6 @@
 <path d="M788 182L846 193" fill="none" stroke="#9BA1AD" stroke-width="1.4" marker-end="url(#arrow)"/>
 <text x="32" y="262" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">Key rotation: the old key endorses the new one, and the endorsement travels inside every signature,</text>
 <text x="32" y="282" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">so clients pinned to k1 keep verifying after the origin moves to k2. A revoked key stops counting at once.</text>
-<text x="32" y="310" font-size="12" font-weight="400" fill="#5D6370" text-anchor="start" xml:space="preserve" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace">Python: verify=True or WITAN_VERIFY=1 · JS: manifest(slug, { verify: keys }) · node: wtn serve --verify</text>
+<text x="32" y="310" font-size="12" font-weight="400" fill="#5D6370" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">Python: verify=True or WITAN_VERIFY=1 · JS: manifest(slug, { verify: keys }) · node: wtn serve --verify</text>
 </g>
 </svg>

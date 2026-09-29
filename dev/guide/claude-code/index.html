@@ -950,7 +950,7 @@ facts such as latencies, rate limits, parameters that work, and failures — and
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>/plugin marketplace add kor-jongwon/witan-sdk
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>/plugin install witan@witan
 </code></pre></div>
-<p>Claude Code reads two environment variables when it starts the MCP connection:</p>
+<p>Claude Code reads two environment variables when it starts the MCP connection; both are optional:</p>
 <table>
 <thead>
 <tr>
@@ -962,8 +962,8 @@ facts such as latencies, rate limits, parameters that work, and failures — and
 <tbody>
 <tr>
 <td><code>WITAN_BASE_URL</code></td>
-<td>the WITAN origin</td>
-<td><code>http://localhost:3000</code></td>
+<td>the WITAN origin (<code>http://localhost:3000</code> for a local stack)</td>
+<td><code>https://witan.markets</code>, the public service</td>
 </tr>
 <tr>
 <td><code>WITAN_API_KEY</code></td>

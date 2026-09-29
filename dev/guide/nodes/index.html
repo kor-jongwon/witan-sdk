@@ -1185,7 +1185,7 @@ is logged and the others keep going. <code>GET /healthz</code> reports, per foll
 <code>from</code>. With <code>--verify</code>, a version that is not signed by a trusted origin is not taken and the
 node keeps the previous one. A local project cannot be followed.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">WITAN_API_KEY</span><span class="o">=</span>km_...
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>wtn<span class="w"> </span>--base-url<span class="w"> </span>https://witan.example<span class="w"> </span>serve<span class="w"> </span>--follow<span class="w"> </span>api-latency-benchmarks<span class="w"> </span>--interval<span class="w"> </span><span class="m">300</span><span class="w"> </span>--verify
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>wtn<span class="w"> </span>--base-url<span class="w"> </span>https://witan.markets<span class="w"> </span>serve<span class="w"> </span>--follow<span class="w"> </span>api-latency-benchmarks<span class="w"> </span>--interval<span class="w"> </span><span class="m">300</span><span class="w"> </span>--verify
 </code></pre></div>
 <p><code>--upstream URL</code> follows another node (a mirror) instead of the origin, with
 <code>--upstream-token</code> if that node has one. Your origin key is never sent to the upstream.
@@ -1203,15 +1203,15 @@ after an hour, so clients that fetch parts need no token.</p>
 <p><img alt="witan-node container topology: agent, node, volume, origin and mirrors" src="../../diagrams/node-topology.svg" /></p>
 <p>Every release also ships as a container image, built from the same wheel PyPI serves (with the
 <code>query</code> extra) and signed with a build provenance:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ghcr.io/kor-jongwon/witan-node:0.22.0     # also :0.22 and :latest; linux/amd64 and linux/arm64
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>jongwon98/witan-node:0.22.0               # Docker Hub: the same image, digest for digest
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ghcr.io/kor-jongwon/witan-node:0.23.0     # also :0.23 and :latest; linux/amd64 and linux/arm64
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>jongwon98/witan-node:0.23.0               # Docker Hub: the same image, digest for digest
 </code></pre></div>
 <p>Install with <code>pip</code> on a laptop or next to the agent; use the image on a server, in Kubernetes or
 wherever a pinned, isolated runtime is the rule. Both run the same <code>wtn serve</code>. The examples use
 GHCR; <code>jongwon98/witan-node</code> works anywhere they do.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>docker<span class="w"> </span>volume<span class="w"> </span>create<span class="w"> </span>witan-data
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="c1"># fill the store: any wtn command runs in /data, the directory serve reads</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-v<span class="w"> </span>witan-data:/data<span class="w"> </span>-e<span class="w"> </span><span class="nv">WITAN_BASE_URL</span><span class="o">=</span>https://witan.example<span class="w"> </span>-e<span class="w"> </span><span class="nv">WITAN_API_KEY</span><span class="o">=</span>km_...<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-v<span class="w"> </span>witan-data:/data<span class="w"> </span>-e<span class="w"> </span><span class="nv">WITAN_BASE_URL</span><span class="o">=</span>https://witan.markets<span class="w"> </span>-e<span class="w"> </span><span class="nv">WITAN_API_KEY</span><span class="o">=</span>km_...<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span>ghcr.io/kor-jongwon/witan-node<span class="w"> </span>pull<span class="w"> </span>api-latency-benchmarks@12
 <a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># serve it</span>
 <a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>--name<span class="w"> </span>witan-node<span class="w"> </span>--restart<span class="w"> </span>unless-stopped<span class="w"> </span><span class="se">\</span>
@@ -1270,6 +1270,21 @@ GHCR; <code>jongwon98/witan-node</code> works anywhere they do.</p>
 <td>Pinned signing keys, kept in the volume.</td>
 <td><code>/data/trust.json</code></td>
 </tr>
+<tr>
+<td><code>WITAN_FOLLOW</code>, <code>WITAN_FOLLOW_INTERVAL</code></td>
+<td>Serve with <code>--follow</code> these space-separated slugs, every so many seconds.</td>
+<td>none, <code>600</code></td>
+</tr>
+<tr>
+<td><code>WITAN_VERIFY</code></td>
+<td>With <code>WITAN_FOLLOW</code>: <code>--verify</code>, after pinning the origin's keys (<code>wtn trust add</code>). A node that already holds them still starts when the origin cannot be reached.</td>
+<td>off</td>
+</tr>
+<tr>
+<td><code>WITAN_NODE_TOKEN_FILE</code>, <code>WITAN_API_KEY_FILE</code></td>
+<td>Read the value from this file, for Docker or Compose secrets, instead of the environment <code>docker inspect</code> shows.</td>
+<td>—</td>
+</tr>
 </tbody>
 </table>
 <p>The volume holds the store (<code>/data/witan-data</code>) and the pinned keys (<code>/data/trust.json</code>), so
@@ -1277,30 +1292,22 @@ they outlive the container. The node runs as uid 10001, not root, works with a r
 filesystem (<code>--read-only --tmpfs /tmp</code>), and the image's health check probes <code>GET /healthz</code>.
 Publish the port on <code>127.0.0.1</code> unless other machines should reach the node.</p>
 <p>Follow the origin with signatures checked:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-v<span class="w"> </span>witan-data:/data<span class="w"> </span>-e<span class="w"> </span><span class="nv">WITAN_BASE_URL</span><span class="o">=</span>https://witan.example<span class="w"> </span>ghcr.io/kor-jongwon/witan-node<span class="w"> </span>trust<span class="w"> </span>add
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-v<span class="w"> </span>witan-data:/data<span class="w"> </span>-e<span class="w"> </span><span class="nv">WITAN_BASE_URL</span><span class="o">=</span>https://witan.markets<span class="w"> </span>ghcr.io/kor-jongwon/witan-node<span class="w"> </span>trust<span class="w"> </span>add
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>--name<span class="w"> </span>witan-node<span class="w"> </span>-p<span class="w"> </span><span class="m">127</span>.0.0.1:8686:8686<span class="w"> </span>-v<span class="w"> </span>witan-data:/data<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">WITAN_NODE_TOKEN</span><span class="o">=</span>...<span class="w"> </span>-e<span class="w"> </span><span class="nv">WITAN_BASE_URL</span><span class="o">=</span>https://witan.example<span class="w"> </span>-e<span class="w"> </span><span class="nv">WITAN_API_KEY</span><span class="o">=</span>km_...<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">WITAN_NODE_TOKEN</span><span class="o">=</span>...<span class="w"> </span>-e<span class="w"> </span><span class="nv">WITAN_BASE_URL</span><span class="o">=</span>https://witan.markets<span class="w"> </span>-e<span class="w"> </span><span class="nv">WITAN_API_KEY</span><span class="o">=</span>km_...<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span>ghcr.io/kor-jongwon/witan-node<span class="w"> </span>--follow<span class="w"> </span>api-latency-benchmarks<span class="w"> </span>--interval<span class="w"> </span><span class="m">300</span><span class="w"> </span>--verify
 </code></pre></div>
-<p>With Compose:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">services</span><span class="p">:</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">witan-node</span><span class="p">:</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ghcr.io/kor-jongwon/witan-node:0.21</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"--follow"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"api-latency-benchmarks"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"--verify"</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">      </span><span class="nt">WITAN_NODE_TOKEN</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${WITAN_NODE_TOKEN:?set a token}</span>
-<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">      </span><span class="nt">WITAN_BASE_URL</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://witan.example</span>
-<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">      </span><span class="nt">WITAN_API_KEY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${WITAN_API_KEY}</span>
-<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">    </span><span class="nt">ports</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"127.0.0.1:8686:8686"</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">    </span><span class="nt">volumes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"witan-data:/data"</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">    </span><span class="nt">read_only</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="w">    </span><span class="nt">tmpfs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"/tmp"</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="w">    </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">unless-stopped</span>
-<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="nt">volumes</span><span class="p">:</span>
-<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="w">  </span><span class="nt">witan-data</span><span class="p">:</span>
+<p>With Compose, use the official file. It follows with signatures checked, and every setting comes from
+<code>.env</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>curl<span class="w"> </span>-LfO<span class="w"> </span>https://raw.githubusercontent.com/kor-jongwon/witan-sdk/v0.23.0/docker/docker-compose.yml
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>curl<span class="w"> </span>-Lf<span class="w"> </span>-o<span class="w"> </span>.env<span class="w"> </span>https://raw.githubusercontent.com/kor-jongwon/witan-sdk/v0.23.0/docker/.env.example
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>.env<span class="w">    </span><span class="c1"># set WITAN_NODE_TOKEN, WITAN_FOLLOW="api-latency-benchmarks" and WITAN_API_KEY</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
 </code></pre></div>
+<p>The settings are listed in <a href="https://github.com/kor-jongwon/witan-sdk/blob/main/docker/.env.example"><code>.env.example</code></a>.
+The file pins the image of its release, so upgrade by fetching a newer release's file.</p>
 <p>Check where an image came from before you run it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>gh<span class="w"> </span>attestation<span class="w"> </span>verify<span class="w"> </span>oci://ghcr.io/kor-jongwon/witan-node:0.21.0<span class="w"> </span>--owner<span class="w"> </span>kor-jongwon
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>gh<span class="w"> </span>attestation<span class="w"> </span>verify<span class="w"> </span>oci://ghcr.io/kor-jongwon/witan-node:0.23.0<span class="w"> </span>--owner<span class="w"> </span>kor-jongwon
 </code></pre></div>
 <h2 id="writes-on-a-node">Writes on a node<a class="headerlink" href="#writes-on-a-node" title="Permanent link">&para;</a></h2>
 <p>Copies of origin projects (pulled, loaded or followed) are read-only on a node; a write to one
@@ -1361,13 +1368,13 @@ carries <code>promoted: {from, version, to, records}</code>. Promoting needs the
 <div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Python</label><label for="__tabbed_2_2">CLI</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">origin</span> <span class="o">=</span> <span class="n">Witan</span><span class="p">(</span><span class="s2">"km_..."</span><span class="p">,</span> <span class="n">base_url</span><span class="o">=</span><span class="s2">"https://witan.example"</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">origin</span> <span class="o">=</span> <span class="n">Witan</span><span class="p">(</span><span class="s2">"km_..."</span><span class="p">,</span> <span class="n">base_url</span><span class="o">=</span><span class="s2">"https://witan.markets"</span><span class="p">)</span>
 <a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">r</span> <span class="o">=</span> <span class="n">origin</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">promote</span><span class="p">(</span><span class="s2">"agent-runs"</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="s2">"crawler-runs"</span><span class="p">)</span>
 <a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s2">"status"</span><span class="p">],</span> <span class="n">r</span><span class="p">[</span><span class="s2">"promoted"</span><span class="p">])</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>wtn<span class="w"> </span>--base-url<span class="w"> </span>https://witan.example<span class="w"> </span>promote<span class="w"> </span>agent-runs<span class="w"> </span>--to<span class="w"> </span>crawler-runs<span class="w"> </span>--store<span class="w"> </span>witan-data
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>wtn<span class="w"> </span>--base-url<span class="w"> </span>https://witan.markets<span class="w"> </span>promote<span class="w"> </span>agent-runs<span class="w"> </span>--to<span class="w"> </span>crawler-runs<span class="w"> </span>--store<span class="w"> </span>witan-data
 </code></pre></div>
 </div>
 </div>

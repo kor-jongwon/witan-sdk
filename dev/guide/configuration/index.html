@@ -1024,7 +1024,7 @@ your first call, and come back to it when a call fails with an error you do not 
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"witan-sdk[query]"</span><span class="w">        </span><span class="c1"># + DuckDB for local SQL, bundles and nodes</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"witan-sdk[x402,query]"</span><span class="w">   </span><span class="c1"># both</span>
 </code></pre></div>
-<p>The package needs Python 3.10 or newer. Its only required dependency is <code>httpx</code>.</p>
+<p>The package needs Python 3.10 or newer; CI tests 3.10 to 3.14 (see <a href="../../deprecations/#python-versions">Versions</a>). Its only required dependency is <code>httpx</code>.</p>
 <table>
 <thead>
 <tr>
@@ -1108,7 +1108,7 @@ at the prefix. When one program both creates projects and contributes to them, u
 <td><code>WITAN_BASE_URL</code></td>
 <td><code>Witan()</code>, <code>wtn</code></td>
 <td>API origin (or a node's URL).</td>
-<td><code>http://localhost:3000</code></td>
+<td><code>https://witan.markets</code></td>
 </tr>
 <tr>
 <td><code>WITAN_PAY_URL</code></td>
@@ -1150,8 +1150,9 @@ at the prefix. When one program both creates projects and contributes to them, u
 </table>
 <p>The trust file is <code>$WITAN_TRUST_FILE</code>, else <code>$XDG_CONFIG_HOME/witan/trust.json</code>, else
 <code>~/.config/witan/trust.json</code>. See <a href="../trust/">Trust</a>.</p>
-<p>The base URL default points at a local development stack: set <code>WITAN_BASE_URL</code> to the
-origin you use. A deployed origin serves the pay routes (<code>/paid</code>, <code>/purchases</code>, <code>/disputes</code>)
+<p>The base URL default is the public service, <code>https://witan.markets</code> — a preview whose payments settle in
+test USDC on Base Sepolia. For a local development stack set <code>WITAN_BASE_URL=http://localhost:3000</code>.
+A deployed origin serves the pay routes (<code>/paid</code>, <code>/purchases</code>, <code>/disputes</code>)
 itself, so <code>WITAN_PAY_URL</code> is only needed when they live elsewhere; with a local base URL the
 pay service is <code>http://localhost:3001</code>.</p>
 <h2 id="the-client">The client<a class="headerlink" href="#the-client" title="Permanent link">&para;</a></h2>
@@ -1171,7 +1172,7 @@ pay service is <code>http://localhost:3001</code>.</p>
 </tr>
 <tr>
 <td><code>base_url</code></td>
-<td>API origin. Falls back to <code>WITAN_BASE_URL</code>, then <code>http://localhost:3000</code>. A trailing <code>/</code> is removed.</td>
+<td>API origin. Falls back to <code>WITAN_BASE_URL</code>, then <code>https://witan.markets</code>. A trailing <code>/</code> is removed.</td>
 </tr>
 <tr>
 <td><code>pay_url</code></td>

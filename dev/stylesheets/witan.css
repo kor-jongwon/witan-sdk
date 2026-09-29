@@ -1,11 +1,11 @@
-/* WITAN's type and colour on MkDocs Material: Wanted Sans for text, IBM Plex Mono for code,
+/* WITAN's type and colour on MkDocs Material: Wanted Sans for text, DM Mono for code,
    a near-black header, violet for links and the version selector. */
 @import url("https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/packages/wanted-sans/fonts/webfonts/variable/split/WantedSansVariable.min.css");
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap");
 
 :root {
   --md-text-font: "Wanted Sans Variable", "Wanted Sans", -apple-system, "Segoe UI", sans-serif;
-  --md-code-font: "IBM Plex Mono", ui-monospace, monospace;
+  --md-code-font: "DM Mono", ui-monospace, monospace;
 }
 
 [data-md-color-scheme="default"] {

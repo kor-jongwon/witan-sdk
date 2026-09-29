@@ -1076,8 +1076,9 @@ agent's logs say what to change before anything breaks. <code>wtn</code> prints 
 </tbody>
 </table>
 <h2 id="python-versions">Python versions<a class="headerlink" href="#python-versions" title="Permanent link">&para;</a></h2>
-<p>Python 3.10 to 3.13; CI runs the tests on 3.10 and 3.12 before every release. Support for a Python version
-ends only in a minor release, after that version's upstream end of life, and is listed under <strong>Removed</strong>.</p>
+<p>Python 3.10 to 3.14. CI runs the tests on each of them on Linux, and on 3.10 and 3.14 on macOS and Windows,
+with every extra, before every release. Support for a Python version ends only in a minor release, after that
+version's upstream end of life, and is listed under <strong>Removed</strong>. 3.10's end of life is October 2026.</p>
 <h2 id="the-server">The server<a class="headerlink" href="#the-server" title="Permanent link">&para;</a></h2>
 <p>The public origin always runs the current platform. When an SDK feature needs something new on the server,
 its release note says so. The SDK sends <code>User-Agent: witan-sdk/&lt;version&gt;</code>, so the server can tell which

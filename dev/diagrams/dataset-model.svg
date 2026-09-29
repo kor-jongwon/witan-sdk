@@ -12,49 +12,49 @@
 <text x="48" y="143" font-size="14.5" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">v1 manifest</text>
 <text x="48" y="163" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">signed by the origin</text>
 <rect x="48" y="176" width="36" height="22" rx="5" fill="#4E5566"/>
-<text x="66" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace">a</text>
+<text x="66" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">a</text>
 <rect x="92" y="176" width="36" height="22" rx="5" fill="#5B6275"/>
-<text x="110" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace">b</text>
+<text x="110" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">b</text>
 <rect x="332" y="118" width="272" height="92" rx="12" fill="#0E0F16" fill-opacity=".86" stroke="#ECEEF2" stroke-opacity=".16"/>
 <text x="348" y="143" font-size="14.5" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">v2 manifest</text>
 <text x="348" y="163" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">signed by the origin</text>
 <rect x="348" y="176" width="36" height="22" rx="5" fill="#4E5566"/>
-<text x="366" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace">a</text>
+<text x="366" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">a</text>
 <rect x="392" y="176" width="36" height="22" rx="5" fill="#5B6275"/>
-<text x="410" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace">b</text>
+<text x="410" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">b</text>
 <rect x="436" y="176" width="36" height="22" rx="5" fill="#6F5CD6"/>
-<text x="454" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace">c</text>
+<text x="454" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">c</text>
 <rect x="480" y="176" width="36" height="22" rx="5" fill="#8B6BE8"/>
-<text x="498" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace">d</text>
+<text x="498" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">d</text>
 <rect x="632" y="118" width="272" height="92" rx="12" fill="#0E0F16" stroke="#7C5CFF" stroke-width="1.5" filter="url(#glow-v)"/>
 <text x="648" y="143" font-size="14.5" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">v3 manifest</text>
 <text x="648" y="163" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">signed by the origin</text>
 <rect x="648" y="176" width="36" height="22" rx="5" fill="#4E5566"/>
-<text x="666" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace">a</text>
+<text x="666" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">a</text>
 <rect x="692" y="176" width="36" height="22" rx="5" fill="#5B6275"/>
-<text x="710" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace">b</text>
+<text x="710" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">b</text>
 <rect x="736" y="176" width="36" height="22" rx="5" fill="#6F5CD6"/>
-<text x="754" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace">c</text>
+<text x="754" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">c</text>
 <rect x="780" y="176" width="36" height="22" rx="5" fill="#8B6BE8"/>
-<text x="798" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace">d</text>
+<text x="798" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">d</text>
 <rect x="824" y="176" width="36" height="22" rx="5" fill="#FF5C87"/>
-<text x="842" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace">e</text>
+<text x="842" y="190" font-size="12" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">e</text>
 <text x="32" y="262" font-size="11" font-weight="600" letter-spacing="0.7" fill="#5D6370" xml:space="preserve">OBJECT STORE (CONTENT-ADDRESSED PARQUET PARTS, SHARED ACROSS VERSIONS)</text>
 <rect x="32" y="274" width="164" height="56" rx="12" fill="#0E0F16" stroke="#4E5566" stroke-width="1.5"/>
 <text x="48" y="298" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">part a</text>
-<text x="48" y="317" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace">&lt;sha256-a&gt;.parquet</text>
+<text x="48" y="317" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">&lt;sha256-a&gt;.parquet</text>
 <rect x="212" y="274" width="164" height="56" rx="12" fill="#0E0F16" stroke="#5B6275" stroke-width="1.5"/>
 <text x="228" y="298" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">part b</text>
-<text x="228" y="317" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace">&lt;sha256-b&gt;.parquet</text>
+<text x="228" y="317" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">&lt;sha256-b&gt;.parquet</text>
 <rect x="392" y="274" width="164" height="56" rx="12" fill="#0E0F16" stroke="#6F5CD6" stroke-width="1.5"/>
 <text x="408" y="298" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">part c</text>
-<text x="408" y="317" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace">&lt;sha256-c&gt;.parquet</text>
+<text x="408" y="317" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">&lt;sha256-c&gt;.parquet</text>
 <rect x="572" y="274" width="164" height="56" rx="12" fill="#0E0F16" stroke="#8B6BE8" stroke-width="1.5"/>
 <text x="588" y="298" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">part d</text>
-<text x="588" y="317" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace">&lt;sha256-d&gt;.parquet</text>
+<text x="588" y="317" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">&lt;sha256-d&gt;.parquet</text>
 <rect x="752" y="274" width="164" height="56" rx="12" fill="#0E0F16" stroke="#FF5C87" stroke-width="1.5"/>
 <text x="768" y="298" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">part e</text>
-<text x="768" y="317" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace">&lt;sha256-e&gt;.parquet</text>
+<text x="768" y="317" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">&lt;sha256-e&gt;.parquet</text>
 <path d="M760 210L800 272" fill="none" stroke="#7C5CFF" stroke-width="1.8" marker-end="url(#arrow-v)"/>
 <text x="812" y="246" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">pull v3 with v2 on disk:</text>
 <text x="812" y="262" font-size="11.5" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">only part e transfers</text>
