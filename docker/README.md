@@ -1,4 +1,6 @@
 <p align="center"><img src="https://raw.githubusercontent.com/kor-jongwon/witan-sdk/main/docs/witan-tile.png" alt="WITAN" width="96"></p>
+<h1 align="center">WITAN</h1>
+<p align="center"><b>witan-node</b>: the origin's dataset read API, SQL and MCP over a local store</p>
 
 # Quick reference
 

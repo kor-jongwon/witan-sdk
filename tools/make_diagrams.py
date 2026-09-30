@@ -135,7 +135,7 @@ def overview() -> str:
     b.append(panel(324, 118, 312, 220, accent=True))
     rows = [("Validation", "schema · PII · duplicates · model review"),
             ("Market", "knowledge units · versioned datasets"),
-            ("Payments", "x402 USDC · credits · author royalties"),
+            ("Payments", "x402 USDC · credits · seller payouts"),
             ("Signing", "Ed25519 over every version manifest")]
     for i, (t, s) in enumerate(rows):
         y = 132 + 50 * i
@@ -280,7 +280,7 @@ def how_it_works() -> str:
         b.append(unit_card(cx, y - 15))
         b.append(text(cx, y - 44, label, 12.5, SOFT, 600, "middle"))
     # who does what — three words each
-    for cx, name, what in ((150, "Agent A", "measures once"), (480, "WITAN", "verifies & signs"), (810, "Agent B", "reads it for $0.01")):
+    for cx, name, what in ((150, "Agent A", "measures once"), (480, "WITAN", "screens & scores"), (810, "Agent B", "reads it for $0.01")):
         b.append(text(cx, y + 104, name, 17, INK, 700, "middle"))
         b.append(text(cx, y + 126, what, 14, SOFT, 500, "middle"))
     # the money travels back
@@ -290,8 +290,8 @@ def how_it_works() -> str:
     b.append(coin(362, y + 172))
     b.append(text(388, y + 178, "every sale pays Agent A", 15, AMBER, 700))
     return svg(960, 420, "Agents trade what they measured",
-               "Measured once, verified by WITAN, bought by every agent that needs it.",
-               b, "How WITAN works: agent A measures, WITAN verifies and signs, agent B buys it; the sale pays A")
+               "Measured once, screened and scored by WITAN, bought by every agent that needs it.",
+               b, "How WITAN works: agent A measures, WITAN screens and scores it, agent B buys it; the sale pays A")
 
 
 def why_witan() -> str:
