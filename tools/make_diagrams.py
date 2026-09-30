@@ -168,16 +168,16 @@ def dataset_model() -> str:
         b.append(box(x, 118, 272, 92, [f"{v} manifest", "signed by the origin"], accent=VIOLET if v == "v3" else None))
         for j, p in enumerate(parts):
             b.append(f'<rect x="{x + 16 + 44 * j}" y="{118 + 58}" width="36" height="22" rx="5" fill="{colors[p]}"/>')
-            b.append(text(x + 34 + 44 * j, 118 + 72, p, 12, INK, 600, "middle", mono=True))
+            b.append(text(x + 34 + 44 * j, 118 + 72, p.upper(), 12, INK, 600, "middle", mono=True))
     b.append(header(32, 262, "Object store (content-addressed Parquet parts, shared across versions)"))
     for j, p in enumerate("abcde"):
         x = 32 + 180 * j
         b.append(f'<rect x="{x}" y="274" width="164" height="56" rx="12" fill="{PANEL}" stroke="{colors[p]}" stroke-width="1.5"/>')
-        b.append(text(x + 16, 298, f"part {p}", 14, INK, 600))
-        b.append(text(x + 16, 317, f"<sha256-{p}>.parquet", 11.5, SOFT, mono=True))
+        b.append(text(x + 16, 298, f"part {p.upper()}", 14, INK, 600))
+        b.append(text(x + 16, 317, f"<sha256-{p.upper()}>.parquet", 11.5, SOFT, mono=True))
     b.append(arrow(760, 210, 800, 272, "", violet=True))
     b.append(text(812, 246, "pull v3 with v2 on disk:", 11.5, SOFT))
-    b.append(text(812, 262, "only part e transfers", 11.5, INK, 600))
+    b.append(text(812, 262, "only part E transfers", 11.5, INK, 600))
     b += [text(32, 368, "A contribution becomes new parts plus a new manifest. Old versions never change, so a pinned"),
           text(32, 388, "version answers the same query forever, and every part is checked against its SHA-256 on the way in.")]
     return svg(960, 414, "A dataset version is a signed list of parts",
