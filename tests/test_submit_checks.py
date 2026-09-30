@@ -14,8 +14,10 @@ from witan_sdk.cli import main
 UNIT = "5e5fc8dd-af67-4f34-839b-b366ef05d43d"
 
 
-def client(seen: list[httpx.Request]) -> Witan:
+def client(seen: list[httpx.Request], *, node: bool = False) -> Witan:
     def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/healthz":  # the origin answers {ok}; a node with its token says so
+            return httpx.Response(200, json={"ok": True, **({"node": True} if node else {})})
         seen.append(request)
         if request.method == "POST" and request.url.path == "/knowledge":
             return httpx.Response(201, json={"id": UNIT, "status": "submitted"})
@@ -67,6 +69,26 @@ def test_project_license_any_case():
     assert json.loads(seen[0].content)["license"] == "ODbL-1.0"
 
 
+def test_a_node_takes_any_project_license_as_given():
+    seen: list[httpx.Request] = []
+    w = client(seen, node=True)
+    w.projects.create("probe", "Probe", "readme", {"fields": []}, license="MIT")
+    w.projects.create("probe2", "Probe", "readme", {"fields": []}, license="cc-by-4.0")
+    assert [json.loads(r.content)["license"] for r in seen] == ["MIT", "cc-by-4.0"]
+
+
+def test_a_listed_license_needs_no_probe():
+    probes: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        probes.append(request.url.path)
+        return httpx.Response(201, json={"slug": "probe"})
+
+    w = Witan(api_key="km_test", base_url="http://witan.test", transport=httpx.MockTransport(handler))
+    w.projects.create("probe", "Probe", "readme", {"fields": []}, license="CC-BY-4.0")
+    assert probes == ["/projects"]
+
+
 def test_cli_submit_needs_source_and_a_listed_license(capsys: pytest.CaptureFixture[str]):
     seen: list[httpx.Request] = []
     w = client(seen)
@@ -85,9 +107,10 @@ def test_cli_submit_needs_source_and_a_listed_license(capsys: pytest.CaptureFixt
     assert json.loads(seen[0].content)["license"] == "CC0-1.0"
 
 
-def test_cli_create_refuses_an_unknown_license(capsys: pytest.CaptureFixture[str]):
+def test_cli_create_checks_the_license_on_the_origin_only(capsys: pytest.CaptureFixture[str]):
+    args = ["create", "probe", "--title", "Probe", "--readme", "r", "--schema", '{"fields":[]}', "--license", "MIT"]
     seen: list[httpx.Request] = []
-    with pytest.raises(SystemExit):
-        main(["create", "probe", "--title", "Probe", "--readme", "r", "--schema", '{"fields":[]}', "--license", "MIT"],
-             client=client(seen))
+    assert main(args, client=client(seen)) == 1
     assert "license must be one of" in capsys.readouterr().err and seen == []
+    assert main(args + ["--json"], client=client(seen, node=True)) == 0
+    assert json.loads(seen[0].content)["license"] == "MIT"

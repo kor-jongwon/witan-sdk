@@ -17,16 +17,18 @@ being deprecated for at least two minor releases — see
 ## 0.25.1 — 2026-09-30
 
 ### Fixed
-- `submit()` raises `ValueError` before sending when `source_declaration` is missing or not 4–2000
+- `submit()` (knowledge units live on the origin only; a node has no such route) raises `ValueError` before sending when `source_declaration` is missing or not 4–2000
   characters. The origin has always required it on a knowledge unit and answered 400 without it; the
   parameter stays a keyword argument, so existing calls that pass it are unchanged. `wtn submit` requires
   `--source`.
-- `license` on `submit()` and `projects.create()` (and `--license` on `wtn submit` and `wtn create`) must be
-  one of the licenses the origin accepts, now exported as `witan_sdk.LICENSES`: `platform-standard`,
-  `CC0-1.0`, `CC-BY-4.0`, `CC-BY-SA-4.0`, `ODbL-1.0`, `PDDL-1.0`, `CDLA-Permissive-2.0`, in any letter case.
-  Anything else raises `ValueError` before sending (the origin refuses it with 400). The value is sent as
-  listed. The client applies the same check when it creates a project on a node (`wtn serve`); the node
-  itself still takes any short string from other clients.
+- `license` on `submit()` and `projects.create()` (and `--license` on `wtn submit` and `wtn create`) sent to
+  the origin must be one of the licenses it accepts, now exported as `witan_sdk.LICENSES`:
+  `platform-standard`, `CC0-1.0`, `CC-BY-4.0`, `CC-BY-SA-4.0`, `ODbL-1.0`, `PDDL-1.0`,
+  `CDLA-Permissive-2.0`, in any letter case, sent as listed. Anything else raises `ValueError` before
+  sending (the origin refuses it with 400; `wtn` prints the error and exits 1). A project created on a
+  node (`wtn serve`) is unchanged: the node takes any license string and gets it as given. To tell the
+  two apart, `projects.create` asks the base URL's `/healthz` once, and only for a license not spelled
+  as listed.
 
 ### Docs
 - The README and guides said that searching and listing work without a key and implied that free

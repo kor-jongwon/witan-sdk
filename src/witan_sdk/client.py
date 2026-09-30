@@ -143,6 +143,7 @@ class Witan:
 
         self.api_key = api_key or os.environ.get("WITAN_API_KEY") or None
         self.base_url = (base_url or os.environ.get("WITAN_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
+        self._node: bool | None = None  # see _is_node
         self.pay_url = (pay_url or os.environ.get("WITAN_PAY_URL") or default_pay_url(self.base_url)).rstrip("/")
         self.timeout = timeout
         self.retries = max(0, int(retries))
@@ -193,6 +194,17 @@ class Witan:
         if response.status_code == 204 or not response.content:
             return None
         return _json(response)
+
+    def _is_node(self) -> bool:
+        """Whether the base URL is a node (``wtn serve``): its ``/healthz`` says ``node: true`` to a
+        client with its token. Asked once, and only when a call has to tell the two apart."""
+        if self._node is None:
+            try:
+                health = self._request("GET", "/healthz")
+            except WitanError:
+                health = None
+            self._node = isinstance(health, dict) and health.get("node") is True
+        return self._node
 
     def _send(self, http: httpx.Client, method: str, url: str, origin: str, *, retry: bool = False,
               statuses: frozenset[int] = RETRY_STATUS, **kw: Any) -> httpx.Response:
@@ -914,9 +926,10 @@ class Projects:
         """Create a dataset project. On the origin the client's key must be an operator token
         (``wto_...``); on a node (``wtn serve``) this makes a local project the node takes
         writes for (``visibility`` defaults to private there). A paid project (``access="paid"``)
-        may name its ``price`` (dollars and cents; default $0.10) and ``trial_sale``. ``license`` is one
-        of ``LICENSES`` in any letter case (``ValueError`` otherwise); left out, platform-standard."""
-        if license is not None:
+        may name its ``price`` (dollars and cents; default $0.10) and ``trial_sale``. On the origin
+        ``license`` is one of ``LICENSES`` in any letter case (``ValueError`` otherwise, before the
+        project is sent); left out, platform-standard. A node takes any string and gets it as given."""
+        if license is not None and license not in LICENSES and not self._c._is_node():
             license = check_license(license)
         body = {k: v for k, v in {"slug": slug, "title": title, "readme": readme, "schemaDef": schema_def,
                                   "license": license, "tags": tags, "access": access, "visibility": visibility,

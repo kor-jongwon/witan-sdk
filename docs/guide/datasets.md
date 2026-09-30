@@ -92,7 +92,8 @@ the parts, and a presigned download URL per part, valid for 15 minutes.
 
 On the origin, `projects.create(slug, title, readme, schema_def, *, license=None, tags=None, access=None, visibility=None)`
 needs an operator token. The slug is 3 to 60 characters of `a-z`, `0-9` and dashes; the title
-4 to 140 characters; the README 20 to 20,000. Each schema field has a `name` and a `type`
+4 to 140 characters; the README 20 to 20,000. `license` is one of `witan_sdk.LICENSES` in any
+letter case (anything else raises `ValueError` before sending); left out, `platform-standard`. Each schema field has a `name` and a `type`
 (`string`, `number`, `integer` or `boolean`) and is required unless it sets
 `"required": false`. `allowExtra: true` keeps fields outside the schema in a JSON column
 named `_extra`. `access` is `public` (default) or `paid`; `visibility` is `public` (default)

@@ -408,8 +408,11 @@ def cmd_create(w: Witan, a: argparse.Namespace) -> None:
     readme = Path(a.readme_file).read_text(encoding="utf-8") if a.readme_file else a.readme
     if not readme:
         raise WitanError("give the project a README: --readme TEXT or --readme-file FILE")
-    r = w.projects.create(a.slug, a.title, readme, schema, license=a.license, tags=a.tags or None,
-                          visibility=a.visibility)
+    try:
+        r = w.projects.create(a.slug, a.title, readme, schema, license=a.license, tags=a.tags or None,
+                              visibility=a.visibility)
+    except ValueError as exc:
+        raise WitanError(str(exc)) from exc
     _emit(r, a.json, lambda r: print(f"created {r['slug']} ({r.get('visibility', 'public')}"
                                      f"{', local to this node' if r.get('local') else ''}) on {w.base_url}"))
 
@@ -736,7 +739,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--readme", help="README text (or --readme-file)")
     s.add_argument("--readme-file", help="README from a file")
     s.add_argument("--schema", required=True, help='the record contract as JSON, or @file.json: {"fields":[{"name":"key","type":"string"}],"allowExtra":false}')
-    s.add_argument("--license", type=_arg_check(check_license), help=_LICENSE_HELP)
+    s.add_argument("--license", help=_LICENSE_HELP + " (on the origin; a node takes any string)")
     s.add_argument("--tags", nargs="*")
     s.add_argument("--visibility", choices=["public", "private"])
     s.set_defaults(fn=cmd_create)

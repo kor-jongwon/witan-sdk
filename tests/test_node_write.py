@@ -36,6 +36,12 @@ def w(node) -> Witan:
     return w
 
 
+def test_a_real_node_takes_a_custom_license(w: Witan) -> None:
+    # the origin's license list is checked for the origin only: a node keeps any string, as given
+    w.projects.create("custom-license", "Custom license", README, SCHEMA, license="MIT")
+    assert w.projects.get("custom-license")["license"] == "MIT"
+
+
 def test_stable_stringify_matches_the_origin() -> None:
     # JavaScript's JSON.stringify for numbers, keys sorted recursively
     assert stable_stringify({"b": 1.0, "a": [0.00001, 1.5, True, None], "c": {"z": "é", "y": 1e21}}) == \
