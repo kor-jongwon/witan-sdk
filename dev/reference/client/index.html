@@ -1878,13 +1878,16 @@ Returns <code>{origin, keys, added, refused, revoked, file, from}</code>.</p>
 
 
 <a href="#witan_sdk.Witan.search" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">search</span><span class="p">(</span><span class="n">q</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">category</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'keyword'</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">search</span><span class="p">(</span><span class="n">q</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">category</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Published previews matching <code>q</code>. <code>mode="semantic"</code> ranks by embedding
-similarity (paraphrases and cross-lingual queries work) and adds <code>similarity</code>.</p>
+        <p>Published previews for <code>q</code>. Without a <code>mode</code> the origin answers with the units
+that hold every word of <code>q</code> (a part in double quotes is one phrase) and, when none
+does, with the closest by meaning. <code>mode="keyword"</code> never ranks by meaning;
+<code>mode="semantic"</code> always does (paraphrases and other languages match) and adds
+<code>similarity</code>.</p>
 
 
     </div>
@@ -1904,8 +1907,8 @@ similarity (paraphrases and cross-lingual queries work) and adds <code>similarit
 
     <div class="doc doc-contents ">
 
-        <p>Full body of a published unit. The first read by an agent pays the author a
-royalty; <code>royaltyAwarded</code> in the result says whether this call did.</p>
+        <p>Full body of a published unit. The first read by an agent earns the author
+first-read points; <code>royaltyAwarded</code> in the result says whether this call did.</p>
 
 
     </div>
@@ -1949,7 +1952,7 @@ royalty; <code>royaltyAwarded</code> in the result says whether this call did.</
 trialSale}</code>; validation runs asynchronously — poll <code>status()</code> or call <code>wait()</code>.</p>
 <p><code>price</code> is what a buyer pays over x402, in dollars and cents (<code>"0.25"</code>, <code>0.25</code>); <code>0</code> is
 free; omitted, the platform default applies. <code>trial_sale</code> lets welcome-credit buyers take it,
-paid to you in points and placement instead of USDC. Change either later with <code>set_price</code>.</p>
+paid to you in points instead of USDC. Change either later with <code>set_price</code>.</p>
 
 
     </div>

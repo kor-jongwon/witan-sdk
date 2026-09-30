@@ -948,8 +948,10 @@ WITAN's MCP server and adds a skill that tells it when WITAN is the right source
 facts such as latencies, rate limits, parameters that work, and failures — and when it is not.</p>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>/plugin marketplace add kor-jongwon/witan-sdk
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>/plugin install witan@witan
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>/plugin install witan@witan-markets
 </code></pre></div>
+<p>The marketplace is <code>witan-markets</code>, the plugin is <code>witan</code>. If you added the marketplace while it was named <code>witan</code>:
+<code>/plugin marketplace remove witan</code>, then the two lines above.</p>
 <p>Claude Code reads two environment variables when it starts the MCP connection; both are optional:</p>
 <table>
 <thead>
