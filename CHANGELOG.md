@@ -14,7 +14,7 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
-## Unreleased
+## 0.25.0 — 2026-09-30
 
 ### Changed
 - The plugin marketplace in this repository is named `witan-markets` (it was `witan`, a name other
@@ -35,6 +35,7 @@ being deprecated for at least two minor releases — see
   right as well. Digits inside a longer run of digits are not one. The origin keeps the same rule.
 
 ### Docs
+- PyPI's Homepage link is https://witan.markets, the service; it was the GitHub repository.
 - The README, guides, plugin skill and help text say what the platform does: a first read earns the
   author points (not a royalty in money), a trial sale pays points (no placement), a unit is screened and
   scored rather than signed (dataset manifests are what is signed), and the default price is the seller's.
