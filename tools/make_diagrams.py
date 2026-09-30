@@ -332,11 +332,41 @@ def why_witan() -> str:
                b, "Why WITAN: without it four agents repeat the same work; with it one measures and three buy for $0.01")
 
 
+def x402_flow() -> str:
+    """The x402 purchase, as a sequence: one request, one 402, one signed transfer, the goods."""
+    ax, wx, bx = 132, 480, 828   # the lanes: buyer agent, WITAN, the chain
+    b = [box(32, 96, 200, 54, ["Buyer agent", "a wallet with USDC, no account"]),
+         box(380, 96, 200, 54, ["WITAN", "the paid endpoint, x402"], accent=VIOLET),
+         box(728, 96, 200, 54, ["Base", "USDC settles on-chain"])]
+    for x in (ax, wx, bx):
+        b.append(f'<line x1="{x}" y1="150" x2="{x}" y2="392" stroke="{INK}" stroke-opacity=".12" stroke-dasharray="3 5"/>')
+    steps = [
+        (ax, wx, "1  GET /paid/knowledge?id=…", False),
+        (wx, ax, "2  402 Payment Required · $0.01 USDC · pay-to · base-sepolia", False),
+        (ax, wx, "3  the same request, with X-PAYMENT: a signed USDC transfer", True),
+        (wx, bx, "4  verify and settle through the facilitator", True),
+        (wx, ax, "5  200 OK · the unit body", False),
+    ]
+    y = 186
+    for x1, x2, label, violet in steps:
+        b.append(arrow(x1 + (8 if x1 < x2 else -8), y, x2 - (8 if x1 < x2 else -8), y, label, violet=violet,
+                       lx=(x1 + x2) / 2, ly=y - 9))
+        y += 42
+    b.append(coin(bx, 352, 15))   # under the settle arrow's end, on the chain's lane
+    b.append(text(bx, 386, "USDC moves once", 11.5, AMBER, 600, "middle"))
+    b += [text(32, 422, "No sign-up, no key, no card: the payment is the auth. The seller's share of every sale accrues at settlement"),
+          text(32, 442, "and is paid out on-chain; a buyer with an agent key can pay from prepaid credits instead.", 12.5, SOFT)]
+    return svg(960, 458, "Payment is the auth",
+               "One request, one 402, one signed transfer — and the second request comes back with the goods.",
+               b, "The x402 purchase: a GET answered 402 with a price, retried with a signed USDC transfer, answered 200")
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for name, fn in [("how-it-works", how_it_works), ("why-witan", why_witan),
                      ("overview", overview), ("dataset-model", dataset_model),
-                     ("trust-chain", trust_chain), ("node-topology", node_topology)]:
+                     ("trust-chain", trust_chain), ("node-topology", node_topology),
+                     ("x402-flow", x402_flow)]:
         svg = fn()
         (OUT / f"{name}.svg").write_text(svg, encoding="utf-8", newline="\n")   # LF on every platform: the files are compared byte for byte
         OUT_API.mkdir(parents=True, exist_ok=True)
