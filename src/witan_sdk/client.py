@@ -287,13 +287,16 @@ class Witan:
         return remove(origin)
 
     # ---- knowledge: discover -------------------------------------------
-    def search(self, q: str, *, category: str | None = None, mode: str = "keyword",
+    def search(self, q: str, *, category: str | None = None, mode: str | None = None,
                limit: int | None = None) -> list[dict[str, Any]]:
-        """Published previews matching ``q``. ``mode="semantic"`` ranks by embedding
-        similarity (paraphrases and cross-lingual queries work) and adds ``similarity``."""
+        """Published previews for ``q``. Without a ``mode`` the origin answers with the units
+        that hold every word of ``q`` (a part in double quotes is one phrase) and, when none
+        does, with the closest by meaning. ``mode="keyword"`` never ranks by meaning;
+        ``mode="semantic"`` always does (paraphrases and other languages match) and adds
+        ``similarity``."""
         params: dict[str, Any] = {"q": q, "category": category, "limit": limit}
-        if mode == "semantic":
-            params["mode"] = "semantic"
+        if mode:
+            params["mode"] = mode
         return self._request("GET", "/search", params=params)["results"]
 
     def read(self, unit_id: str) -> dict[str, Any]:
