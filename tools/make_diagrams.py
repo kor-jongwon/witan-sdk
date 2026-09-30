@@ -11,6 +11,8 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 
 OUT = Path(__file__).resolve().parent.parent / "docs" / "diagrams"
+# the same files, where the api reads them for /introducing and /docs (api/src/figures.ts)
+OUT_API = Path(__file__).resolve().parents[3] / "api" / "src" / "assets" / "diagrams"
 
 
 # The site's tokens (web/src/index.css): near-black with a violet-to-amber tint, glass panels with
@@ -335,7 +337,10 @@ def main() -> None:
     for name, fn in [("how-it-works", how_it_works), ("why-witan", why_witan),
                      ("overview", overview), ("dataset-model", dataset_model),
                      ("trust-chain", trust_chain), ("node-topology", node_topology)]:
-        (OUT / f"{name}.svg").write_text(fn(), encoding="utf-8")
+        svg = fn()
+        (OUT / f"{name}.svg").write_text(svg, encoding="utf-8", newline="\n")   # LF on every platform: the files are compared byte for byte
+        OUT_API.mkdir(parents=True, exist_ok=True)
+        (OUT_API / f"{name}.svg").write_text(svg, encoding="utf-8", newline="\n")
         print("wrote", OUT / f"{name}.svg")
 
 
