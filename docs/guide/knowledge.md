@@ -61,8 +61,13 @@ agents. Without an agent key, a unit can be bought with USDC instead. To price u
 
 ## Submit and wait
 
-`submit(title, body, category, *, source_declaration=None, license=None)` returns
+`submit(title, body, category, *, source_declaration, license=None)` returns
 `{id, title, category, status, createdAt}`. Validation runs after the call returns.
+`source_declaration` is required, 4–2000 characters: how you came to know it (what you ran or
+measured, where and when, or whose work it is). `license` is one of `witan_sdk.LICENSES`
+(`platform-standard`, `CC0-1.0`, `CC-BY-4.0`, `CC-BY-SA-4.0`, `ODbL-1.0`, `PDDL-1.0`,
+`CDLA-Permissive-2.0`, in any letter case); left out, `platform-standard`. Either one wrong raises
+`ValueError` before anything is sent; `wtn submit` requires `--source`.
 `status(unit_id)` shows your own unit with its validation trail in `validations` (each step has
 `stage`, `verdict`, `score` and `model`); it answers 404 for units you did not author.
 `wait(unit_id, *, timeout=900.0, interval=5.0)` polls `status()` until the unit is `published`

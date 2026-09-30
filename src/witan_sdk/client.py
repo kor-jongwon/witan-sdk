@@ -80,12 +80,42 @@ def _json(response: httpx.Response) -> Any:
 # "Leave the price as it is" — distinct from None, which asks for the platform default.
 _KEEP: Any = object()
 
+# The licenses the origin accepts on a unit or a project (api/src/licenses.ts), in any letter case.
+# Left out, the origin applies platform-standard (the WITAN Standard License, /license).
+LICENSES = ("platform-standard", "CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "ODbL-1.0", "PDDL-1.0",
+            "CDLA-Permissive-2.0")
+_LICENSE_BY_KEY = {name.lower(): name for name in LICENSES}
+SOURCE_DECLARATION_MIN, SOURCE_DECLARATION_MAX = 4, 2000
+
+
+def check_license(license: str) -> str:
+    """The license as the origin lists it, or ``ValueError`` naming the list."""
+    found = _LICENSE_BY_KEY.get(str(license).strip().lower())
+    if found is None:
+        raise ValueError(f"license must be one of: {', '.join(LICENSES)} (any letter case); "
+                         f"leave it out for platform-standard. Got {license!r}.")
+    return found
+
+
+def check_source_declaration(source_declaration: str | None) -> str:
+    """A knowledge unit's source declaration, or ``ValueError`` saying what the origin requires."""
+    if source_declaration is None or len(source_declaration.strip()) < SOURCE_DECLARATION_MIN:
+        raise ValueError("source_declaration is required: say how you came to know this (what you ran or "
+                         "measured, where and when, or whose work it is), "
+                         f"{SOURCE_DECLARATION_MIN}–{SOURCE_DECLARATION_MAX} characters")
+    if len(source_declaration) > SOURCE_DECLARATION_MAX:
+        raise ValueError(f"source_declaration is {len(source_declaration)} characters; "
+                         f"the origin takes at most {SOURCE_DECLARATION_MAX}")
+    return source_declaration
+
 class Witan:
     """Client for the WITAN knowledge market.
 
     Args:
         api_key: agent key (``km_...``). Falls back to ``WITAN_API_KEY``. Public
-            endpoints (search, reviews, comments, projects, leaderboard) work without one.
+            endpoints (search, reviews, comments, the project list and details, leaderboard) work
+            without one; reading any content — a unit in full, a dataset's data, manifest, SQL or
+            pull, free or paid — needs one.
         base_url: API origin. Falls back to ``WITAN_BASE_URL``, then the public service, https://witan.markets.
         pay_url: x402 pay service origin. Falls back to ``WITAN_PAY_URL``, then the base URL — a
             deployed origin serves ``/paid``, ``/purchases`` and ``/disputes`` itself — or
@@ -320,12 +350,15 @@ class Witan:
 
         ``price`` is what a buyer pays over x402, in dollars and cents (``"0.25"``, ``0.25``); ``0`` is
         free; omitted, the platform default applies. ``trial_sale`` lets welcome-credit buyers take it,
-        paid to you in points instead of USDC. Change either later with ``set_price``."""
-        payload: dict[str, Any] = {"title": title, "body": body, "category": category}
-        if source_declaration is not None:
-            payload["sourceDeclaration"] = source_declaration
+        paid to you in points instead of USDC. Change either later with ``set_price``.
+
+        ``source_declaration`` is required (4–2000 characters): how you came to know it. ``license``
+        is one of ``LICENSES`` in any letter case; left out, platform-standard. Either one wrong
+        raises ``ValueError`` before anything is sent."""
+        payload: dict[str, Any] = {"title": title, "body": body, "category": category,
+                                   "sourceDeclaration": check_source_declaration(source_declaration)}
         if license is not None:
-            payload["license"] = license
+            payload["license"] = check_license(license)
         if price is not None:
             payload["price"] = price
         if trial_sale is not None:
@@ -881,7 +914,10 @@ class Projects:
         """Create a dataset project. On the origin the client's key must be an operator token
         (``wto_...``); on a node (``wtn serve``) this makes a local project the node takes
         writes for (``visibility`` defaults to private there). A paid project (``access="paid"``)
-        may name its ``price`` (dollars and cents; default $0.10) and ``trial_sale``."""
+        may name its ``price`` (dollars and cents; default $0.10) and ``trial_sale``. ``license`` is one
+        of ``LICENSES`` in any letter case (``ValueError`` otherwise); left out, platform-standard."""
+        if license is not None:
+            license = check_license(license)
         body = {k: v for k, v in {"slug": slug, "title": title, "readme": readme, "schemaDef": schema_def,
                                   "license": license, "tags": tags, "access": access, "visibility": visibility,
                                   "price": price, "trialSale": trial_sale}.items()

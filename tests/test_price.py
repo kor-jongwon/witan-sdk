@@ -52,7 +52,7 @@ def test_set_price_needs_something_to_change():
 def test_submit_and_projects_carry_price():
     seen: list[httpx.Request] = []
     w = client(seen)
-    w.submit("t" * 10, "b" * 60, "infra-measurement", price="0.05", trial_sale=True)
+    w.submit("t" * 10, "b" * 60, "infra-measurement", source_declaration="own run", price="0.05", trial_sale=True)
     w.projects.update("probe-latency", price="2.50")
     w.projects.update("probe-latency", price=None, trial_sale=False)
     w.projects.update("probe-latency", title="Probe latency")   # no price key at all

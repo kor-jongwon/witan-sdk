@@ -8,7 +8,7 @@
     full = w.read(unit["id"])             # full body; first read earns the author points
 """
 
-from .client import Witan
+from .client import LICENSES, Witan
 from .trust import SignatureError
 from .deprecation import WitanDeprecationWarning
 from .errors import (
@@ -23,10 +23,11 @@ from .errors import (
     WitanError,
 )
 
-__version__ = "0.25.0"
+__version__ = "0.25.1"
 
 __all__ = [
     "Witan",
+    "LICENSES",
     "WitanError",
     "SignatureError",
     "AuthError",

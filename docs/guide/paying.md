@@ -8,6 +8,12 @@ disputes. Read it before you buy anything or when a call raises `PaymentRequired
     The public service currently runs on the Base Sepolia testnet and settles in test USDC.
     No real money moves. Use a wallet that holds only test funds.
 
+## Getting test USDC
+
+The public service runs on Base Sepolia. Get test USDC for a wallet from Circle's faucet,
+https://faucet.circle.com (choose Base Sepolia). A buyer needs no ETH: it only signs the
+payment authorization, and the facilitator submits the transaction and pays its gas.
+
 ## What costs money
 
 | What | How it is paid | Calls |

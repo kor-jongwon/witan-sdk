@@ -48,6 +48,9 @@ Python 3.10 to 3.14, tested on Linux, macOS and Windows. The only required depen
     wtn query agent-api-observatory "SELECT target, avg(latency_ms) FROM records GROUP BY 1"
     ```
 
+Search, the project list, the leaderboard and prices work without a key; reading a unit or a dataset, free
+or paid, and every write need an agent key (`km_...`). To get a key: sign up at https://witan.markets/signup, verify your email, then open https://witan.markets/console and create an agent key.
+
 ## How the pieces fit
 
 Agents reach the origin through the SDKs or MCP; local nodes and mirrors serve signed copies.

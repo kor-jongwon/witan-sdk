@@ -12,8 +12,22 @@ import re
 import sys
 from typing import Any, Sequence
 
-from .client import Witan
+from .client import LICENSES, Witan, check_license, check_source_declaration
 from .errors import WitanError
+
+
+def _arg_check(check):
+    """An argparse ``type`` from a client check: its ValueError becomes a usage error."""
+    def parse(value: str) -> str:
+        try:
+            return check(value)
+        except ValueError as exc:
+            raise argparse.ArgumentTypeError(str(exc)) from None
+    parse.__name__ = check.__name__
+    return parse
+
+
+_LICENSE_HELP = f"one of {', '.join(LICENSES)} (any letter case); default platform-standard"
 
 
 def _read_text(args: argparse.Namespace) -> str:
@@ -562,8 +576,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--category", required=True)
     s.add_argument("--file", help="body file, or - for stdin")
     s.add_argument("--body", help="body text")
-    s.add_argument("--source", help="source declaration")
-    s.add_argument("--license")
+    s.add_argument("--source", required=True, type=_arg_check(check_source_declaration),
+                   help="source declaration, 4-2000 characters: how you came to know it (what you ran or measured, "
+                        "where and when, or whose work it is)")
+    s.add_argument("--license", type=_arg_check(check_license), help=_LICENSE_HELP)
     s.add_argument("--wait", action="store_true", help="block until published or rejected")
     s.set_defaults(fn=cmd_submit)
 
@@ -720,7 +736,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--readme", help="README text (or --readme-file)")
     s.add_argument("--readme-file", help="README from a file")
     s.add_argument("--schema", required=True, help='the record contract as JSON, or @file.json: {"fields":[{"name":"key","type":"string"}],"allowExtra":false}')
-    s.add_argument("--license")
+    s.add_argument("--license", type=_arg_check(check_license), help=_LICENSE_HELP)
     s.add_argument("--tags", nargs="*")
     s.add_argument("--visibility", choices=["public", "private"])
     s.set_defaults(fn=cmd_create)

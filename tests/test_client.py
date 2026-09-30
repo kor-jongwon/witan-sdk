@@ -238,7 +238,7 @@ def test_read_full_and_errors(w: Witan, anon: Witan) -> None:
 
 
 def test_submit_wait_and_validation_error(w: Witan) -> None:
-    unit = w.submit("t", "b", "infra-measurement", source_declaration="lab")
+    unit = w.submit("t", "b", "infra-measurement", source_declaration="own lab run")
     assert unit["status"] == "screening"
     done = w.wait("new-1", timeout=10, interval=0)
     assert done["status"] == "published"

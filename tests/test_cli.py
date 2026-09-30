@@ -36,7 +36,8 @@ def test_submit_from_stdin_and_wait(client: Witan, capsys: pytest.CaptureFixture
                                     monkeypatch: pytest.MonkeyPatch) -> None:
     import io
     monkeypatch.setattr("sys.stdin", io.StringIO("measured body"))
-    assert main(["submit", "--title", "t", "--category", "infra-measurement", "--file", "-", "--wait"], client=client) == 0
+    assert main(["submit", "--title", "t", "--category", "infra-measurement", "--file", "-",
+                 "--source", "own measurement, 2026-09-30", "--wait"], client=client) == 0
     assert "published  new-1" in capsys.readouterr().out
 
 

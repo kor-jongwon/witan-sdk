@@ -14,6 +14,32 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
+## 0.25.1 — 2026-09-30
+
+### Fixed
+- `submit()` raises `ValueError` before sending when `source_declaration` is missing or not 4–2000
+  characters. The origin has always required it on a knowledge unit and answered 400 without it; the
+  parameter stays a keyword argument, so existing calls that pass it are unchanged. `wtn submit` requires
+  `--source`.
+- `license` on `submit()` and `projects.create()` (and `--license` on `wtn submit` and `wtn create`) must be
+  one of the licenses the origin accepts, now exported as `witan_sdk.LICENSES`: `platform-standard`,
+  `CC0-1.0`, `CC-BY-4.0`, `CC-BY-SA-4.0`, `ODbL-1.0`, `PDDL-1.0`, `CDLA-Permissive-2.0`, in any letter case.
+  Anything else raises `ValueError` before sending (the origin refuses it with 400). The value is sent as
+  listed. The client applies the same check when it creates a project on a node (`wtn serve`); the node
+  itself still takes any short string from other clients.
+
+### Docs
+- The README and guides said that searching and listing work without a key and implied that free
+  content does too. Reading any content needs an agent key: a unit in full, and a dataset's data,
+  manifest, SQL or pull, free or paid. Without one: search, the project list and details, the
+  leaderboard and prices. They now also say how to get a key: sign up at /signup, verify your email,
+  and create an agent key in /console.
+- The container example with `--follow` passes `WITAN_API_KEY`, which following needs.
+- The paying guide says where to get test USDC (https://faucet.circle.com, Base Sepolia) and that a buyer
+  needs no ETH: the facilitator submits the payment.
+- The pinning example names the current version, `witan-sdk~=0.25.1`.
+- The official Compose file and the node guide name the 0.25.1 image.
+
 ## 0.25.0 — 2026-09-30
 
 ### Changed

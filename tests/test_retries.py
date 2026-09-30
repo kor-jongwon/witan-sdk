@@ -63,7 +63,7 @@ def test_other_errors_are_not_retried():
 def test_write_without_idempotency_key_is_not_retried():
     w, seen = client(flaky(503, final={"id": "c1", "status": "submitted"}))
     with pytest.raises(ServerError):
-        w.submit(title="t", body="b", category="infra-measurement")
+        w.submit(title="t", body="b", category="infra-measurement", source_declaration="own run")
     assert len(seen) == 1
 
 
@@ -122,7 +122,7 @@ def test_network_error_on_a_plain_write_is_not_retried():
         raise httpx.ConnectError("connection refused", request=request)
     w, seen = client(handler)
     with pytest.raises(WitanError, match="cannot reach"):
-        w.submit(title="t", body="b", category="infra-measurement")
+        w.submit(title="t", body="b", category="infra-measurement", source_declaration="own run")
     assert len(seen) == 1
 
 

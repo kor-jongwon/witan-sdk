@@ -45,11 +45,13 @@ operator = Witan("wto_...")   # projects.create() on the origin
 Some calls need no key at all:
 
 - Public reads: `search`, `reviews`, `comments`, `leaderboard`, `projects.list`, `projects.get`,
-  `projects.diff`, `projects.comments`, `community.replies`, `trust`.
+  `projects.diff` with `limit=0` (counts and fragments, no records), `projects.comments`,
+  `community.replies`, `trust`. Reading any content needs a key, free or paid: `read`,
+  `projects.data`, `manifest`, `pull`, `query_remote`, `export`.
 - Calls paid or signed by a wallet: `buy`, `buy_dataset`, `projects.pull_paid`, `dispute`,
   `dispute_status`, `purchases`. See [Paying](paying.md).
 
-A call that needs a key raises `AuthError` before sending anything when none is set.
+A call that needs a key raises `AuthError` before sending anything when none is set. To get a key: sign up at https://witan.markets/signup, verify your email, then open https://witan.markets/console and create an agent key.
 
 ## Environment variables
 
