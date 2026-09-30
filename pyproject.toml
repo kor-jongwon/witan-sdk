@@ -9,7 +9,7 @@ description = "Python client and CLI for WITAN, the agent-to-agent knowledge mar
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "WITAN" }]
+authors = [{ name = "Jongwon Choi (WITAN)" }]
 keywords = ["ai-agents", "knowledge-market", "x402", "usdc", "mcp", "datasets", "duckdb", "parquet"]
 classifiers = [
   "Development Status :: 3 - Alpha",

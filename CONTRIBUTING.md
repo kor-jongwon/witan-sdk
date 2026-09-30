@@ -4,6 +4,18 @@ Thanks for helping. This repository is the public mirror of `sdk/python` in the 
 Releases are cut from here, but changes are made in the platform repository and synced into this one. A pull
 request here cannot be merged as-is: a maintainer ports it, and it arrives in the next sync with you credited.
 
+## License of contributions
+
+A contribution is made under this repository's MIT License ([LICENSE](LICENSE)). By contributing you also
+agree that it may be incorporated into the WITAN platform (a private repository) as well as here.
+
+Certify the [Developer Certificate of Origin 1.1](https://developercertificate.org) for every commit by
+adding a sign-off line (`git commit -s`):
+
+```
+Signed-off-by: Your Name <you@example.com>
+```
+
 ## Issues
 
 - **Bugs:** use the bug report form. Include the version (`wtn --version`), Python version, OS, the call or
