@@ -40,7 +40,7 @@ def _score(u: dict[str, Any]) -> str:
 
 
 def cmd_search(w: Witan, a: argparse.Namespace) -> None:
-    results = w.search(a.query, category=a.category, mode="semantic" if a.semantic else "keyword", limit=a.limit)
+    results = w.search(a.query, category=a.category, mode="semantic" if a.semantic else None, limit=a.limit)
 
     def human(rows: list[dict[str, Any]]) -> None:
         if not rows:

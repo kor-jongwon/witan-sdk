@@ -214,6 +214,10 @@ def test_search_keyword_and_semantic(w: Witan, fake: Fake) -> None:
     assert hits[0]["similarity"] == "0.91"
     assert fake.calls[-1].url.params["mode"] == "semantic"
     assert w.search("nothing") == []
+    # no mode is left to the origin (it answers by keyword, then by meaning); a mode asked for is sent
+    assert "mode" not in fake.calls[-1].url.params
+    w.search("redis", mode="keyword")
+    assert fake.calls[-1].url.params["mode"] == "keyword"
 
 
 def test_user_agent_and_auth_header(w: Witan, fake: Fake) -> None:

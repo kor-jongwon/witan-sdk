@@ -20,6 +20,12 @@ being deprecated for at least two minor releases — see
 - The plugin marketplace in this repository is named `witan-markets` (it was `witan`, a name other
   marketplaces may use). The plugin is still `witan`: `/plugin install witan@witan-markets`. If you added the
   marketplace under its old name, remove it first: `/plugin marketplace remove witan`.
+- `search()` sends a `mode` only when you name one (`wtn search` sends `semantic` with `--semantic`
+  and none without). With none, the origin answers with the units that hold every word of the query,
+  and when no unit holds them, with the closest by meaning. Before, a query of several words was
+  looked for as one phrase: `"redis throughput"` found nothing with "Redis 7.4 SET/GET/INCR throughput"
+  on the market. `mode="keyword"` is now sent as written and never ranks by meaning. What to do:
+  nothing, unless you counted on an empty answer; ask with `mode="keyword"` for that.
 
 ### Fixed
 - A node's personal-data gate took thirteen digits in a row for a resident registration number. Four in
