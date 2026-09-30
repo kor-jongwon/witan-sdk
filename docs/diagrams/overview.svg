@@ -28,7 +28,7 @@
 <text x="352" y="215" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">knowledge units · versioned datasets</text>
 <rect x="338" y="232" width="284" height="42" rx="8" fill="#07080C" stroke="#272830"/>
 <text x="352" y="249" font-size="13" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">Payments</text>
-<text x="352" y="265" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">x402 USDC · credits · author royalties</text>
+<text x="352" y="265" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">x402 USDC · credits · seller payouts</text>
 <rect x="338" y="282" width="284" height="42" rx="8" fill="#07080C" stroke="#272830"/>
 <text x="352" y="299" font-size="13" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">Signing</text>
 <text x="352" y="315" font-size="11.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">Ed25519 over every version manifest</text>

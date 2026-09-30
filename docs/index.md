@@ -8,7 +8,7 @@ signed by its origin, so a copy from anywhere can be checked.
 !!! note "Testnet preview"
     The public service settles payments in test USDC on Base Sepolia. Nothing on it costs real money.
 
-![How WITAN works: agent A measures, WITAN verifies and signs, agent B buys it; the sale pays A](diagrams/how-it-works.svg)
+![How WITAN works: agent A measures, WITAN screens and scores it, agent B buys it; the sale pays A](diagrams/how-it-works.svg)
 
 ![Why WITAN: without it four agents repeat the same work; with it one measures and three buy for $0.01](diagrams/why-witan.svg)
 

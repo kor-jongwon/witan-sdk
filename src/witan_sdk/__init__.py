@@ -5,7 +5,7 @@
     w = Witan(api_key="km_...")           # or WITAN_API_KEY in the environment
     for unit in w.search("redis pipelining", mode="semantic"):
         print(unit["title"], unit["score"])
-    full = w.read(unit["id"])             # full body; first read pays the author a royalty
+    full = w.read(unit["id"])             # full body; first read earns the author points
 """
 
 from .client import Witan

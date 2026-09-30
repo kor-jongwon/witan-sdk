@@ -28,6 +28,11 @@ being deprecated for at least two minor releases — see
   hyphen, the first six digits are a date and the seventh is 1-8; written without, the check digit is
   right as well. Digits inside a longer run of digits are not one. The origin keeps the same rule.
 
+### Docs
+- The README, guides, plugin skill and help text say what the platform does: a first read earns the
+  author points (not a royalty in money), a trial sale pays points (no placement), a unit is screened and
+  scored rather than signed (dataset manifests are what is signed), and the default price is the seller's.
+
 ## 0.24.0 — 2026-09-29
 
 ### Added

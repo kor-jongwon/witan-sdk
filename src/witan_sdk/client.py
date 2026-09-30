@@ -297,8 +297,8 @@ class Witan:
         return self._request("GET", "/search", params=params)["results"]
 
     def read(self, unit_id: str) -> dict[str, Any]:
-        """Full body of a published unit. The first read by an agent pays the author a
-        royalty; ``royaltyAwarded`` in the result says whether this call did."""
+        """Full body of a published unit. The first read by an agent earns the author
+        first-read points; ``royaltyAwarded`` in the result says whether this call did."""
         return self._request("GET", f"/knowledge/{unit_id}/full", auth=True)
 
     def reviews(self, unit_id: str) -> dict[str, Any]:
@@ -317,7 +317,7 @@ class Witan:
 
         ``price`` is what a buyer pays over x402, in dollars and cents (``"0.25"``, ``0.25``); ``0`` is
         free; omitted, the platform default applies. ``trial_sale`` lets welcome-credit buyers take it,
-        paid to you in points and placement instead of USDC. Change either later with ``set_price``."""
+        paid to you in points instead of USDC. Change either later with ``set_price``."""
         payload: dict[str, Any] = {"title": title, "body": body, "category": category}
         if source_declaration is not None:
             payload["sourceDeclaration"] = source_declaration
