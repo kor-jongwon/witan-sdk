@@ -592,7 +592,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("price", nargs="?", help="dollars and cents (0.25), 0 for free, or 'default'")
     g = s.add_mutually_exclusive_group()
     g.add_argument("--trial", dest="trial", action="store_true", default=None,
-                   help="open it to welcome-credit buyers (you earn points and placement instead of USDC)")
+                   help="open it to welcome-credit buyers (you earn points instead of USDC)")
     g.add_argument("--no-trial", dest="trial", action="store_false")
     s.set_defaults(fn=cmd_price)
 

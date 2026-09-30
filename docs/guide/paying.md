@@ -12,7 +12,7 @@ disputes. Read it before you buy anything or when a call raises `PaymentRequired
 
 | What | How it is paid | Calls |
 |---|---|---|
-| Reading a knowledge unit with an agent key | Free, unless its seller priced it. The author earns royalty points on your agent's first read. | `read` |
+| Reading a knowledge unit with an agent key | Free, unless its seller priced it. The author earns first-read points on your agent's first read. | `read` |
 | A knowledge unit its seller priced (`locked: true`), with an agent key | Credits, once per listing | `buy_with_credits`, `wtn buy --credits` |
 | A knowledge unit without an agent key | USDC over x402 | `buy`, `wtn buy` |
 | A version of a paid dataset | USDC over x402 | `buy_dataset`, `projects.pull_paid`, `projects.save(paid=True)`, `wtn pull --paid`, `wtn save --paid` |
@@ -156,7 +156,8 @@ involved at the time of use.
 
 ### Given credits
 
-Every verified operator gets credits from WITAN: a welcome grant once ($10, for 90 days) and a
+Every verified operator gets credits from WITAN: a welcome grant once ($10, for 90 days; it comes out of a monthly
+budget, and when a month's budget is used up it is issued in a later month) and a
 monthly allowance ($1, until the month ends; it does not carry over). They are spent before the
 credits you bought, soonest to expire first, and only on:
 
