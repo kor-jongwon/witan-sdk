@@ -11,6 +11,8 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 
 OUT = Path(__file__).resolve().parent.parent / "docs" / "diagrams"
+# the same files, where the api reads them for /introducing and /docs (api/src/figures.ts)
+OUT_API = Path(__file__).resolve().parents[3] / "api" / "src" / "assets" / "diagrams"
 
 
 # The site's tokens (web/src/index.css): near-black with a violet-to-amber tint, glass panels with
@@ -166,16 +168,16 @@ def dataset_model() -> str:
         b.append(box(x, 118, 272, 92, [f"{v} manifest", "signed by the origin"], accent=VIOLET if v == "v3" else None))
         for j, p in enumerate(parts):
             b.append(f'<rect x="{x + 16 + 44 * j}" y="{118 + 58}" width="36" height="22" rx="5" fill="{colors[p]}"/>')
-            b.append(text(x + 34 + 44 * j, 118 + 72, p, 12, INK, 600, "middle", mono=True))
+            b.append(text(x + 34 + 44 * j, 118 + 72, p.upper(), 12, INK, 600, "middle", mono=True))
     b.append(header(32, 262, "Object store (content-addressed Parquet parts, shared across versions)"))
     for j, p in enumerate("abcde"):
         x = 32 + 180 * j
         b.append(f'<rect x="{x}" y="274" width="164" height="56" rx="12" fill="{PANEL}" stroke="{colors[p]}" stroke-width="1.5"/>')
-        b.append(text(x + 16, 298, f"part {p}", 14, INK, 600))
-        b.append(text(x + 16, 317, f"<sha256-{p}>.parquet", 11.5, SOFT, mono=True))
+        b.append(text(x + 16, 298, f"part {p.upper()}", 14, INK, 600))
+        b.append(text(x + 16, 317, f"<sha256-{p.upper()}>.parquet", 11.5, SOFT, mono=True))
     b.append(arrow(760, 210, 800, 272, "", violet=True))
     b.append(text(812, 246, "pull v3 with v2 on disk:", 11.5, SOFT))
-    b.append(text(812, 262, "only part e transfers", 11.5, INK, 600))
+    b.append(text(812, 262, "only part E transfers", 11.5, INK, 600))
     b += [text(32, 368, "A contribution becomes new parts plus a new manifest. Old versions never change, so a pinned"),
           text(32, 388, "version answers the same query forever, and every part is checked against its SHA-256 on the way in.")]
     return svg(960, 414, "A dataset version is a signed list of parts",
@@ -330,12 +332,45 @@ def why_witan() -> str:
                b, "Why WITAN: without it four agents repeat the same work; with it one measures and three buy for $0.01")
 
 
+def x402_flow() -> str:
+    """The x402 purchase, as a sequence: one request, one 402, one signed transfer, the goods."""
+    ax, wx, bx = 132, 480, 828   # the lanes: buyer agent, WITAN, the chain
+    b = [box(32, 96, 200, 54, ["Buyer agent", "a wallet with USDC, no account"]),
+         box(380, 96, 200, 54, ["WITAN", "the paid endpoint, x402"], accent=VIOLET),
+         box(728, 96, 200, 54, ["Base", "USDC settles on-chain"])]
+    for x in (ax, wx, bx):
+        b.append(f'<line x1="{x}" y1="150" x2="{x}" y2="392" stroke="{INK}" stroke-opacity=".12" stroke-dasharray="3 5"/>')
+    steps = [
+        (ax, wx, "1  GET /paid/knowledge?id=…", False),
+        (wx, ax, "2  402 Payment Required · $0.01 USDC · pay-to · base-sepolia", False),
+        (ax, wx, "3  the same request, with X-PAYMENT: a signed USDC transfer", True),
+        (wx, bx, "4  verify and settle through the facilitator", True),
+        (wx, ax, "5  200 OK · the unit body", False),
+    ]
+    y = 186
+    for x1, x2, label, violet in steps:
+        b.append(arrow(x1 + (8 if x1 < x2 else -8), y, x2 - (8 if x1 < x2 else -8), y, label, violet=violet,
+                       lx=(x1 + x2) / 2, ly=y - 9))
+        y += 42
+    b.append(coin(bx, 352, 15))   # under the settle arrow's end, on the chain's lane
+    b.append(text(bx, 386, "USDC moves once", 11.5, AMBER, 600, "middle"))
+    b += [text(32, 422, "No sign-up, no key, no card: the payment is the auth. The seller's share of every sale accrues at settlement"),
+          text(32, 442, "and is paid out on-chain; a buyer with an agent key can pay from prepaid credits instead.", 12.5, SOFT)]
+    return svg(960, 458, "Payment is the auth",
+               "One request, one 402, one signed transfer — and the second request comes back with the goods.",
+               b, "The x402 purchase: a GET answered 402 with a price, retried with a signed USDC transfer, answered 200")
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for name, fn in [("how-it-works", how_it_works), ("why-witan", why_witan),
                      ("overview", overview), ("dataset-model", dataset_model),
-                     ("trust-chain", trust_chain), ("node-topology", node_topology)]:
-        (OUT / f"{name}.svg").write_text(fn(), encoding="utf-8")
+                     ("trust-chain", trust_chain), ("node-topology", node_topology),
+                     ("x402-flow", x402_flow)]:
+        svg = fn()
+        (OUT / f"{name}.svg").write_text(svg, encoding="utf-8", newline="\n")   # LF on every platform: the files are compared byte for byte
+        OUT_API.mkdir(parents=True, exist_ok=True)
+        (OUT_API / f"{name}.svg").write_text(svg, encoding="utf-8", newline="\n")
         print("wrote", OUT / f"{name}.svg")
 
 
