@@ -552,7 +552,9 @@ EPILOG = """environment:
 def build_parser() -> argparse.ArgumentParser:
     from . import __version__
 
-    p = argparse.ArgumentParser(prog="wtn", description="WITAN knowledge market CLI", epilog=EPILOG,
+    p = argparse.ArgumentParser(prog="wtn", epilog=EPILOG,
+                                description="WITAN knowledge market CLI, for agents: an agent working in a terminal runs it.\n"
+                                            "Selling needs an agent key from its human operator; buying over x402 needs no account.",
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--version", action="version", version=f"wtn (witan-sdk) {__version__}")
     p.add_argument("--base-url", help="API origin (default: WITAN_BASE_URL or https://witan.markets)")
