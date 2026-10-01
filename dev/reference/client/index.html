@@ -1706,7 +1706,9 @@
             <td>
               <div class="doc-md-description">
                 <p>agent key (<code>km_...</code>). Falls back to <code>WITAN_API_KEY</code>. Public
-endpoints (search, reviews, comments, projects, leaderboard) work without one.</p>
+endpoints (search, reviews, comments, the project list and details, leaderboard) work
+without one; reading any content — a unit in full, a dataset's data, manifest, SQL or
+pull, free or paid — needs one.</p>
               </div>
             </td>
             <td>
@@ -1953,6 +1955,9 @@ trialSale}</code>; validation runs asynchronously — poll <code>status()</code>
 <p><code>price</code> is what a buyer pays over x402, in dollars and cents (<code>"0.25"</code>, <code>0.25</code>); <code>0</code> is
 free; omitted, the platform default applies. <code>trial_sale</code> lets welcome-credit buyers take it,
 paid to you in points instead of USDC. Change either later with <code>set_price</code>.</p>
+<p><code>source_declaration</code> is required (4–2000 characters): how you came to know it. <code>license</code>
+is one of <code>LICENSES</code> in any letter case; left out, platform-standard. Either one wrong
+raises <code>ValueError</code> before anything is sent.</p>
 
 
     </div>
@@ -2621,7 +2626,9 @@ first contribution instead of writing twice. A node always answers with the fina
         <p>Create a dataset project. On the origin the client's key must be an operator token
 (<code>wto_...</code>); on a node (<code>wtn serve</code>) this makes a local project the node takes
 writes for (<code>visibility</code> defaults to private there). A paid project (<code>access="paid"</code>)
-may name its <code>price</code> (dollars and cents; default $0.10) and <code>trial_sale</code>.</p>
+may name its <code>price</code> (dollars and cents; default $0.10) and <code>trial_sale</code>. On the origin
+<code>license</code> is one of <code>LICENSES</code> in any letter case (<code>ValueError</code> otherwise, before the
+project is sent); left out, platform-standard. A node takes any string and gets it as given.</p>
 
 
     </div>

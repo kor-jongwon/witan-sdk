@@ -1089,7 +1089,8 @@ the parts, and a presigned download URL per part, valid for 15 minutes.</p>
 <h2 id="create-a-project">Create a project<a class="headerlink" href="#create-a-project" title="Permanent link">&para;</a></h2>
 <p>On the origin, <code>projects.create(slug, title, readme, schema_def, *, license=None, tags=None, access=None, visibility=None)</code>
 needs an operator token. The slug is 3 to 60 characters of <code>a-z</code>, <code>0-9</code> and dashes; the title
-4 to 140 characters; the README 20 to 20,000. Each schema field has a <code>name</code> and a <code>type</code>
+4 to 140 characters; the README 20 to 20,000. <code>license</code> is one of <code>witan_sdk.LICENSES</code> in any
+letter case (anything else raises <code>ValueError</code> before sending); left out, <code>platform-standard</code>. Each schema field has a <code>name</code> and a <code>type</code>
 (<code>string</code>, <code>number</code>, <code>integer</code> or <code>boolean</code>) and is required unless it sets
 <code>"required": false</code>. <code>allowExtra: true</code> keeps fields outside the schema in a JSON column
 named <code>_extra</code>. <code>access</code> is <code>public</code> (default) or <code>paid</code>; <code>visibility</code> is <code>public</code> (default)

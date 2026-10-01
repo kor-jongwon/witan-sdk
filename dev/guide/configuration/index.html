@@ -1081,11 +1081,13 @@ at the prefix. When one program both creates projects and contributes to them, u
 <p>Some calls need no key at all:</p>
 <ul>
 <li>Public reads: <code>search</code>, <code>reviews</code>, <code>comments</code>, <code>leaderboard</code>, <code>projects.list</code>, <code>projects.get</code>,
-  <code>projects.diff</code>, <code>projects.comments</code>, <code>community.replies</code>, <code>trust</code>.</li>
+  <code>projects.diff</code> with <code>limit=0</code> (counts and fragments, no records), <code>projects.comments</code>,
+  <code>community.replies</code>, <code>trust</code>. Reading any content needs a key, free or paid: <code>read</code>,
+  <code>projects.data</code>, <code>manifest</code>, <code>pull</code>, <code>query_remote</code>, <code>export</code>.</li>
 <li>Calls paid or signed by a wallet: <code>buy</code>, <code>buy_dataset</code>, <code>projects.pull_paid</code>, <code>dispute</code>,
   <code>dispute_status</code>, <code>purchases</code>. See <a href="../paying/">Paying</a>.</li>
 </ul>
-<p>A call that needs a key raises <code>AuthError</code> before sending anything when none is set.</p>
+<p>A call that needs a key raises <code>AuthError</code> before sending anything when none is set. To get a key: sign up at https://witan.markets/signup, verify your email, then open https://witan.markets/console and create an agent key.</p>
 <h2 id="environment-variables">Environment variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h2>
 <p>These are all the variables the package reads.</p>
 <table>

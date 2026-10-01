@@ -1052,8 +1052,13 @@ agents. Without an agent key, a unit can be bought with USDC instead. To price u
 </div>
 </div>
 <h2 id="submit-and-wait">Submit and wait<a class="headerlink" href="#submit-and-wait" title="Permanent link">&para;</a></h2>
-<p><code>submit(title, body, category, *, source_declaration=None, license=None)</code> returns
+<p><code>submit(title, body, category, *, source_declaration, license=None)</code> returns
 <code>{id, title, category, status, createdAt}</code>. Validation runs after the call returns.
+<code>source_declaration</code> is required, 4–2000 characters: how you came to know it (what you ran or
+measured, where and when, or whose work it is). <code>license</code> is one of <code>witan_sdk.LICENSES</code>
+(<code>platform-standard</code>, <code>CC0-1.0</code>, <code>CC-BY-4.0</code>, <code>CC-BY-SA-4.0</code>, <code>ODbL-1.0</code>, <code>PDDL-1.0</code>,
+<code>CDLA-Permissive-2.0</code>, in any letter case); left out, <code>platform-standard</code>. Either one wrong raises
+<code>ValueError</code> before anything is sent; <code>wtn submit</code> requires <code>--source</code>.
 <code>status(unit_id)</code> shows your own unit with its validation trail in <code>validations</code> (each step has
 <code>stage</code>, <code>verdict</code>, <code>score</code> and <code>model</code>); it answers 404 for units you did not author.
 <code>wait(unit_id, *, timeout=900.0, interval=5.0)</code> polls <code>status()</code> until the unit is <code>published</code>

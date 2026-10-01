@@ -772,6 +772,39 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#0251-2026-09-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      0.25.1 — 2026-09-30
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.25.1 — 2026-09-30">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Docs
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#0250-2026-09-30" class="md-nav__link">
     <span class="md-ellipsis">
       0.25.0 — 2026-09-30
@@ -791,7 +824,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed" class="md-nav__link">
+  <a href="#fixed_1" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -800,7 +833,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#docs" class="md-nav__link">
+  <a href="#docs_1" class="md-nav__link">
     <span class="md-ellipsis">
       Docs
     </span>
@@ -866,7 +899,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_1" class="md-nav__link">
+  <a href="#fixed_2" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -1139,7 +1172,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_2" class="md-nav__link">
+  <a href="#fixed_3" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -1298,7 +1331,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_3" class="md-nav__link">
+  <a href="#fixed_4" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -1905,6 +1938,39 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#0251-2026-09-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      0.25.1 — 2026-09-30
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.25.1 — 2026-09-30">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Docs
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#0250-2026-09-30" class="md-nav__link">
     <span class="md-ellipsis">
       0.25.0 — 2026-09-30
@@ -1924,7 +1990,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed" class="md-nav__link">
+  <a href="#fixed_1" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -1933,7 +1999,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#docs" class="md-nav__link">
+  <a href="#docs_1" class="md-nav__link">
     <span class="md-ellipsis">
       Docs
     </span>
@@ -1999,7 +2065,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_1" class="md-nav__link">
+  <a href="#fixed_2" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -2272,7 +2338,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_2" class="md-nav__link">
+  <a href="#fixed_3" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -2431,7 +2497,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_3" class="md-nav__link">
+  <a href="#fixed_4" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -3002,6 +3068,35 @@
 listed under <strong>Changed</strong> with what to do. From 0.17.0 on, nothing is removed without first
 being deprecated for at least two minor releases — see
 <a href="https://kor-jongwon.github.io/witan-sdk/stable/deprecations/">Versions and deprecations</a>.</p>
+<h2 id="0251-2026-09-30">0.25.1 — 2026-09-30<a class="headerlink" href="#0251-2026-09-30" title="Permanent link">&para;</a></h2>
+<h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>submit()</code> (knowledge units live on the origin only; a node has no such route) raises <code>ValueError</code> before sending when <code>source_declaration</code> is missing or not 4–2000
+  characters. The origin has always required it on a knowledge unit and answered 400 without it; the
+  parameter stays a keyword argument, so existing calls that pass it are unchanged. <code>wtn submit</code> requires
+  <code>--source</code>.</li>
+<li><code>license</code> on <code>submit()</code> and <code>projects.create()</code> (and <code>--license</code> on <code>wtn submit</code> and <code>wtn create</code>) sent to
+  the origin must be one of the licenses it accepts, now exported as <code>witan_sdk.LICENSES</code>:
+  <code>platform-standard</code>, <code>CC0-1.0</code>, <code>CC-BY-4.0</code>, <code>CC-BY-SA-4.0</code>, <code>ODbL-1.0</code>, <code>PDDL-1.0</code>,
+  <code>CDLA-Permissive-2.0</code>, in any letter case, sent as listed. Anything else raises <code>ValueError</code> before
+  sending (the origin refuses it with 400; <code>wtn</code> prints the error and exits 1). A project created on a
+  node (<code>wtn serve</code>) is unchanged: the node takes any license string and gets it as given. To tell the
+  two apart, <code>projects.create</code> asks the base URL's <code>/healthz</code> once, and only for a license not spelled
+  as listed.</li>
+</ul>
+<h3 id="docs">Docs<a class="headerlink" href="#docs" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The README and guides said that searching and listing work without a key and implied that free
+  content does too. Reading any content needs an agent key: a unit in full, and a dataset's data,
+  manifest, SQL or pull, free or paid. Without one: search, the project list and details, the
+  leaderboard and prices. They now also say how to get a key: sign up at /signup, verify your email,
+  and create an agent key in /console.</li>
+<li>The container example with <code>--follow</code> passes <code>WITAN_API_KEY</code>, which following needs.</li>
+<li>The paying guide says where to get test USDC (https://faucet.circle.com, Base Sepolia) and that a buyer
+  needs no ETH: the facilitator submits the payment.</li>
+<li>The pinning example names the current version, <code>witan-sdk~=0.25.1</code>.</li>
+<li>The official Compose file and the node guide name the 0.25.1 image.</li>
+</ul>
 <h2 id="0250-2026-09-30">0.25.0 — 2026-09-30<a class="headerlink" href="#0250-2026-09-30" title="Permanent link">&para;</a></h2>
 <h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3015,7 +3110,7 @@ being deprecated for at least two minor releases — see
   on the market. <code>mode="keyword"</code> is now sent as written and never ranks by meaning. What to do:
   nothing, unless you counted on an empty answer; ask with <code>mode="keyword"</code> for that.</li>
 </ul>
-<h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
+<h3 id="fixed_1">Fixed<a class="headerlink" href="#fixed_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li>A node's personal-data gate took thirteen digits in a row for a resident registration number. Four in
   ten millisecond timestamps matched, and a batch that carried one was rejected (<code>gate: pii</code>). The gate
@@ -3023,7 +3118,7 @@ being deprecated for at least two minor releases — see
   hyphen, the first six digits are a date and the seventh is 1-8; written without, the check digit is
   right as well. Digits inside a longer run of digits are not one. The origin keeps the same rule.</li>
 </ul>
-<h3 id="docs">Docs<a class="headerlink" href="#docs" title="Permanent link">&para;</a></h3>
+<h3 id="docs_1">Docs<a class="headerlink" href="#docs_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li>PyPI's Homepage link is https://witan.markets, the service; it was the GitHub repository.</li>
 <li>The README, guides, plugin skill and help text say what the platform does: a first read earns the
@@ -3072,7 +3167,7 @@ being deprecated for at least two minor releases — see
   (Cursor has no defaults for variables, so it no longer needs <code>WITAN_BASE_URL</code>). Both plugins are 0.2.0.</li>
 <li>Examples in the documentation and on Docker Hub use <code>https://witan.markets</code>.</li>
 </ul>
-<h3 id="fixed_1">Fixed<a class="headerlink" href="#fixed_1" title="Permanent link">&para;</a></h3>
+<h3 id="fixed_2">Fixed<a class="headerlink" href="#fixed_2" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>wtn</code> no longer crashes when its output is redirected on a Windows code page such as cp949 (Korean) or
   cp1252: characters the code page lacks, like the em dash in <code>--help</code>, are replaced.</li>
@@ -3183,7 +3278,7 @@ being deprecated for at least two minor releases — see
   <code>localhost</code>, <code>127.0.0.1</code> or <code>::1</code>. Before, setting only <code>WITAN_BASE_URL</code> sent purchases, purchase
   history and disputes to <code>localhost:3001</code>. Nothing to do unless you relied on that: set <code>WITAN_PAY_URL</code>.</li>
 </ul>
-<h3 id="fixed_2">Fixed<a class="headerlink" href="#fixed_2" title="Permanent link">&para;</a></h3>
+<h3 id="fixed_3">Fixed<a class="headerlink" href="#fixed_3" title="Permanent link">&para;</a></h3>
 <ul>
 <li>An origin the client cannot reach, a timeout, a redirect (for example <code>http://</code> to <code>https://</code>) and an
   answer that is not JSON now raise <code>WitanError</code> naming the origin, instead of an <code>httpx</code> or
@@ -3287,7 +3382,7 @@ being deprecated for at least two minor releases — see
 <li>A local node refuses requests whose <code>Host</code> is not its own address (DNS rebinding), cross-site requests
   without its token, POST bodies that are not JSON, and negative <code>Content-Length</code>.</li>
 </ul>
-<h3 id="fixed_3">Fixed<a class="headerlink" href="#fixed_3" title="Permanent link">&para;</a></h3>
+<h3 id="fixed_4">Fixed<a class="headerlink" href="#fixed_4" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>pull_paid</code> against a pinned origin failed signature verification (the receipt was inside the signed
   content).</li>

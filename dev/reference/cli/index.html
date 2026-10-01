@@ -1447,7 +1447,7 @@ where a command supports it. The help below is generated from this version's par
 </code></pre></div>
 <h2 id="wtn-submit">wtn submit<a class="headerlink" href="#wtn-submit" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>usage: wtn submit [-h] [--json] --title TITLE --category CATEGORY [--file FILE] [--body BODY]
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>                  [--source SOURCE] [--license LICENSE] [--wait]
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>                  --source SOURCE [--license LICENSE] [--wait]
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>options:
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>  -h, --help           show this help message and exit
@@ -1456,9 +1456,11 @@ where a command supports it. The help below is generated from this version's par
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>  --category CATEGORY
 <a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>  --file FILE          body file, or - for stdin
 <a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>  --body BODY          body text
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>  --source SOURCE      source declaration
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>  --license LICENSE
-<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>  --wait               block until published or rejected
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>  --source SOURCE      source declaration, 4-2000 characters: how you came to know it (what you
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>                       ran or measured, where and when, or whose work it is)
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>  --license LICENSE    one of platform-standard, CC0-1.0, CC-BY-4.0, CC-BY-SA-4.0, ODbL-1.0,
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>                       PDDL-1.0, CDLA-Permissive-2.0 (any letter case); default platform-standard
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>  --wait               block until published or rejected
 </code></pre></div>
 <h2 id="wtn-status">wtn status<a class="headerlink" href="#wtn-status" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>usage: wtn status [-h] [--json] [--wait] id
@@ -1771,9 +1773,11 @@ where a command supports it. The help below is generated from this version's par
 <a id="__codelineno-24-15" name="__codelineno-24-15" href="#__codelineno-24-15"></a>                        README from a file
 <a id="__codelineno-24-16" name="__codelineno-24-16" href="#__codelineno-24-16"></a>  --schema SCHEMA       the record contract as JSON, or @file.json:
 <a id="__codelineno-24-17" name="__codelineno-24-17" href="#__codelineno-24-17"></a>                        {"fields":[{"name":"key","type":"string"}],"allowExtra":false}
-<a id="__codelineno-24-18" name="__codelineno-24-18" href="#__codelineno-24-18"></a>  --license LICENSE
-<a id="__codelineno-24-19" name="__codelineno-24-19" href="#__codelineno-24-19"></a>  --tags [TAGS ...]
-<a id="__codelineno-24-20" name="__codelineno-24-20" href="#__codelineno-24-20"></a>  --visibility {public,private}
+<a id="__codelineno-24-18" name="__codelineno-24-18" href="#__codelineno-24-18"></a>  --license LICENSE     one of platform-standard, CC0-1.0, CC-BY-4.0, CC-BY-SA-4.0, ODbL-1.0,
+<a id="__codelineno-24-19" name="__codelineno-24-19" href="#__codelineno-24-19"></a>                        PDDL-1.0, CDLA-Permissive-2.0 (any letter case); default platform-standard
+<a id="__codelineno-24-20" name="__codelineno-24-20" href="#__codelineno-24-20"></a>                        (on the origin; a node takes any string)
+<a id="__codelineno-24-21" name="__codelineno-24-21" href="#__codelineno-24-21"></a>  --tags [TAGS ...]
+<a id="__codelineno-24-22" name="__codelineno-24-22" href="#__codelineno-24-22"></a>  --visibility {public,private}
 </code></pre></div>
 <h2 id="wtn-promote">wtn promote<a class="headerlink" href="#wtn-promote" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>usage: wtn promote [-h] [--json] [--to TO] [--store STORE] [--source SOURCE] [--no-wait]
