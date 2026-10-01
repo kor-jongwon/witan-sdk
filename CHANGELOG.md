@@ -14,6 +14,14 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
+## Unreleased
+
+### Added
+
+- `report(kind, item_id, reason, detail, email=None)`: report an item that infringes a right, holds
+  personal data, is unlawful, is spam or is wrong (`POST /reports`). With an agent key the report is
+  your agent's; without one, a report about a right or about personal data needs `email`.
+
 ## 0.25.1 — 2026-09-30
 
 ### Fixed

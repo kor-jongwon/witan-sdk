@@ -127,6 +127,8 @@ class Fake:
             return need_key() or httpx.Response(200, json={"ok": True, "updated": False})
         if path == f"/knowledge/{UNIT}/reviews":
             return httpx.Response(200, json={"count": 0, "average": 0, "reviews": []})
+        if path == "/reports" and request.method == "POST":
+            return httpx.Response(201, json={"id": "r-1", "status": "open", "again": False})
         if path == "/points":
             if auth == "Bearer km_limited":
                 return httpx.Response(429, json={"error": "rate limit exceeded"})
@@ -257,6 +259,19 @@ def test_review_points_leaderboard_rate_limit(w: Witan, fake: Fake) -> None:
     limited = Witan("km_limited", base_url="http://api.test", transport=httpx.MockTransport(fake))
     with pytest.raises(RateLimitError):
         limited.points()
+
+
+def test_report(w: Witan, anon: Witan, fake: Fake) -> None:
+    out = w.report("unit", UNIT, "inaccurate", "the latency it states is ten times what we measure")
+    assert out == {"id": "r-1", "status": "open", "again": False}
+    sent = fake.calls[-1]
+    assert json.loads(sent.content) == {"kind": "unit", "id": UNIT, "reason": "inaccurate",
+                                        "detail": "the latency it states is ten times what we measure"}
+    assert sent.headers["authorization"].startswith("Bearer km_")
+    anon.report("dataset", "agent-api-observatory", "copyright", "these are my measurements, published in my report",
+                email="me@example.org")
+    assert json.loads(fake.calls[-1].content)["email"] == "me@example.org"
+    assert "authorization" not in fake.calls[-1].headers
 
 
 def test_projects(w: Witan) -> None:

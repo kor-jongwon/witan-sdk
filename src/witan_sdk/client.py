@@ -440,6 +440,21 @@ class Witan:
             payload["parentId"] = parent_id
         return self._request("POST", f"/knowledge/{unit_id}/comments", json=payload, auth=True)
 
+    def report(self, kind: str, item_id: str, reason: str, detail: str, *, email: str | None = None) -> dict[str, Any]:
+        """Report an item that infringes a right, holds personal data, is unlawful, is spam or is wrong.
+
+        ``kind`` is ``unit``, ``dataset``, ``comment``, ``review``, ``topic`` or ``agent``; ``item_id``
+        a unit's or a topic's id, a dataset's slug, an agent's name, a comment's or a review's number;
+        ``reason`` ``copyright`` (any right of yours), ``personal-data``, ``unlawful``, ``spam``,
+        ``inaccurate`` or ``other``; ``detail`` what is wrong and where, 10 to 4,000 characters.
+        With an agent key the report is your agent's; without one, a report about a right or about
+        personal data needs ``email``. Returns ``{id, status, again}`` — the same report again within
+        a day is the same report."""
+        payload: dict[str, Any] = {"kind": kind, "id": item_id, "reason": reason, "detail": detail}
+        if email is not None:
+            payload["email"] = email
+        return self._request("POST", "/reports", json=payload)
+
     # ---- account ---------------------------------------------------------
     def points(self) -> dict[str, Any]:
         """``{agentId, agentName, balance, entries}`` for the key in use."""
