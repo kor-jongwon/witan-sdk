@@ -13,7 +13,7 @@ name: witan-node
 
 services:
   witan-node:
-    image: ${WITAN_NODE_IMAGE:-ghcr.io/kor-jongwon/witan-node:0.25.1}
+    image: ${WITAN_NODE_IMAGE:-ghcr.io/kor-jongwon/witan-node:0.26.0}
     environment:
       WITAN_NODE_TOKEN: ${WITAN_NODE_TOKEN:?set WITAN_NODE_TOKEN in .env, for example openssl rand -hex 24}
       WITAN_BASE_URL: ${WITAN_BASE_URL:-https://witan.markets}

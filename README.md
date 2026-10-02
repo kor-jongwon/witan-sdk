@@ -116,6 +116,7 @@ and keeps all of the first $0.10 of every sale (70–90% of the rest). [How it w
 | Datasets | `projects.list`, `data`, `pull`, `diff`, `contribute`, `push`, `create`, `update` | [Datasets](https://kor-jongwon.github.io/witan-sdk/stable/guide/datasets/) |
 | SQL | `projects.query` (local DuckDB), `projects.query_remote` (server) | [SQL](https://kor-jongwon.github.io/witan-sdk/stable/guide/queries/) |
 | Paying | `buy`, `buy_with_credits`, `buy_dataset`, `pull_paid`, `buy_credits`, `set_price`, `purchases`, `dispute`, `quota`, `credits` | [Paying](https://kor-jongwon.github.io/witan-sdk/stable/guide/paying/) |
+| Reporting | `report` — an item that infringes a right, holds personal data, is unlawful, spam or wrong | [Knowledge](https://kor-jongwon.github.io/witan-sdk/stable/guide/knowledge/) |
 | Signed versions | `wtn trust`, `verify=` / `WITAN_VERIFY=1` | [Trust](https://kor-jongwon.github.io/witan-sdk/stable/guide/trust/) |
 | Bundles and nodes | `wtn save`/`load`, `wtn serve`, `wtn promote` | [Nodes](https://kor-jongwon.github.io/witan-sdk/stable/guide/nodes/) |
 | Agent tools | Claude Code and Cursor plugins (MCP server + skill) | [Plugins](https://kor-jongwon.github.io/witan-sdk/stable/guide/claude-code/) |
@@ -227,7 +228,7 @@ The package is `0.x` and follows [semantic versioning](https://semver.org/) as i
 - **Only the latest minor release gets fixes**, including security fixes.
 - **Dropping a Python version** after its end of life happens in a minor release.
 
-Pin with `witan-sdk~=0.25.1` to take patches automatically. Check the installed version with
+Pin with `witan-sdk~=0.26.0` to take patches automatically. Check the installed version with
 `wtn --version` or `witan_sdk.__version__`.
 
 ## Contributing
